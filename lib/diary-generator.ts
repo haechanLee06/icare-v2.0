@@ -42,6 +42,9 @@ ${conversationSummary}
 请为我写一篇今日心语日记：`
 
   try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 25000) // 25 second timeout
+
     const response = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -51,9 +54,9 @@ ${conversationSummary}
       body: JSON.stringify({
         model: "deepseek-ai/DeepSeek-V3",
         messages: [{ role: "user", content: diaryPrompt }],
-        max_tokens: 800,
+        max_tokens: 600, // Reduced max tokens for faster generation
         enable_thinking: true,
-        thinking_budget: 4096,
+        thinking_budget: 2048, // Reduced thinking budget
         min_p: 0.05,
         temperature: 0.8,
         top_p: 0.9,
@@ -61,7 +64,10 @@ ${conversationSummary}
         frequency_penalty: 0.5,
         n: 1,
       }),
+      signal: controller.signal, // Added timeout control
     })
+
+    clearTimeout(timeoutId)
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -79,6 +85,9 @@ ${conversationSummary}
     return content
   } catch (error) {
     console.error("Error generating diary:", error)
+    if (error instanceof Error && error.name === "AbortError") {
+      console.log("Diary generation timeout, using fallback")
+    }
     return "今天我与内心进行了一场深度对话。在这个安静的时刻，我感受到了生活中那些细微而珍贵的美好。每一次思考都让我更加了解自己，每一份感受都值得被温柔对待。愿明天的我能带着今日的收获，继续前行。"
   }
 }
@@ -93,6 +102,9 @@ export async function analyzeDiaryMood(content: string): Promise<string> {
 ${content}`
 
   try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000) // 15 second timeout
+
     const response = await fetch("https://api.siliconflow.cn/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -104,7 +116,7 @@ ${content}`
         messages: [{ role: "user", content: moodAnalysisPrompt }],
         max_tokens: 10,
         enable_thinking: true,
-        thinking_budget: 4096,
+        thinking_budget: 1024, // Reduced thinking budget for faster analysis
         min_p: 0.05,
         temperature: 0.3,
         top_p: 0.7,
@@ -112,7 +124,10 @@ ${content}`
         frequency_penalty: 0.5,
         n: 1,
       }),
+      signal: controller.signal,
     })
+
+    clearTimeout(timeoutId)
 
     if (response.ok) {
       const data = await response.json()
