@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, use } from "react"
+import { getCurrentDateInfo } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -8,7 +9,8 @@ import { Input } from "@/components/ui/input"
 import { ArrowLeft, Save } from "lucide-react"
 import Link from "next/link"
 
-export default function EditDiaryPage({ params }: { params: { id: string } }) {
+export default function EditDiaryPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [title, setTitle] = useState("夏日的小幸")
   const [content, setContent] =
     useState(`今天的天气很温暖，民过同市雨在车里看上，便感到我接触了一个小小的温暖风景。我接着一杯茶水，轻嗅一口，便感觉温暖人心的小确幸延续到全身。
@@ -37,7 +39,7 @@ export default function EditDiaryPage({ params }: { params: { id: string } }) {
     <div className="min-h-screen bg-background paper-texture">
       {/* 顶部导航 */}
       <header className="flex items-center justify-between p-4 pt-12">
-        <Link href={`/diary/${params.id}`}>
+        <Link href={`/diary/${id}`}>
           <Button variant="ghost" size="icon" className="gentle-transition">
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -55,7 +57,7 @@ export default function EditDiaryPage({ params }: { params: { id: string } }) {
             <div className="w-2 h-2 rounded-full bg-primary"></div>
             <span className="text-sm text-muted-foreground">今日记录</span>
           </div>
-          <p className="text-lg font-medium text-foreground">8月13日</p>
+          <p className="text-lg font-medium text-foreground">{getCurrentDateInfo().monthDay}</p>
         </div>
 
         {/* 编辑区域 */}

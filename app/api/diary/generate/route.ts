@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 })
     }
 
-    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
     const userSessionCookie = request.cookies.get("user-session")
     if (!userSessionCookie) {
@@ -37,7 +37,6 @@ export async function POST(request: NextRequest) {
       .from("messages")
       .select("role, content, created_at")
       .eq("conversation_id", conversationId)
-      .eq("user_id", user.id) // Add user_id filter for security
       .order("created_at", { ascending: true })
 
     if (messagesError) {
@@ -82,9 +81,12 @@ export async function POST(request: NextRequest) {
       .from("diary_entries")
       .insert({
         user_id: user.id,
+        conversation_id: conversationId,
         title,
         content: diaryContent,
-        emotion, // 使用emotion字段匹配数据库schema
+        emotion,
+        ai_insight: `基于我们的对话，我为你生成了这篇日记。你的文字中透露出${emotion}的情绪，这种感受值得被记录和珍惜。`,
+        mood_tags: [emotion, "生活感悟", "内心成长"],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })

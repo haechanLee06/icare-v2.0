@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -17,53 +17,57 @@ import {
   Plus,
   BarChart3,
   User,
+  Loader2,
 } from "lucide-react"
 import Link from "next/link"
 import { AuthGuard } from "@/components/auth-guard"
+import { supabase } from "@/lib/supabase/client"
+import { formatDate, getEmotionColor, getEmotionEmoji, getCurrentDateInfo } from "@/lib/utils"
 
 interface DiaryEntry {
   id: string
   title: string
   content: string
-  date: string
-  time: string
   emotion: string
-  emotionColor: string
+  created_at: string
+  updated_at: string
+  ai_insight?: string
+  mood_tags?: string[]
+  weather?: string
+  location?: string
 }
 
 export default function DiaryPage() {
-  const [currentDate, setCurrentDate] = useState(new Date(2023, 7)) // 2023年8月
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const currentDateInfo = getCurrentDateInfo()
 
-  const diaryEntries: DiaryEntry[] = [
-    {
-      id: "1",
-      title: "平静的午后",
-      content:
-        "今天的阳光格外温暖，还过同市雨在车里看上，便感到我接触了一个小小的温暖风景。我接着一杯茶水，轻嗅一口，便感觉温暖人心的小确幸延续到全身。",
-      date: "2023年8月13日",
-      time: "星期日 · 15:30",
-      emotion: "平静",
-      emotionColor: "bg-blue-100 text-blue-800",
-    },
-    {
-      id: "2",
-      title: "雨外的清新",
-      content: "今天下了一整天的雨，空气中弥漫着清新的味道。我喜欢这样的天气，让人感到宁静和放松。",
-      date: "2023年8月12日",
-      time: "星期六 · 20:15",
-      emotion: "愉悦",
-      emotionColor: "bg-green-100 text-green-800",
-    },
-    {
-      id: "3",
-      title: "忙碌的一天",
-      content: "工作很忙，但是完成了很多事情。虽然累，但是很有成就感。",
-      date: "2023年8月10日",
-      time: "星期四 · 22:30",
-      emotion: "充实",
-      emotionColor: "bg-orange-100 text-orange-800",
-    },
-  ]
+  useEffect(() => {
+    async function fetchDiaryEntries() {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from('diary_entries')
+          .select('*')
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          throw error
+        }
+
+        setDiaryEntries(data || [])
+      } catch (err) {
+        console.error('Error fetching diary entries:', err)
+        setError(err instanceof Error ? err.message : '加载日记失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDiaryEntries()
+  }, [])
 
   const formatMonth = (date: Date) => {
     return `${date.getFullYear()}年${date.getMonth() + 1}月`
@@ -89,86 +93,138 @@ export default function DiaryPage() {
 
         {/* 月份导航 */}
         <div className="flex items-center justify-center gap-4 px-4 mb-6">
-          <Button variant="ghost" size="icon" className="w-8 h-8">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="w-8 h-8"
+            onClick={() => {
+              const newDate = new Date(currentDate)
+              newDate.setMonth(newDate.getMonth() - 1)
+              setCurrentDate(newDate)
+            }}
+          >
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <h2 className="text-lg font-medium text-foreground">{formatMonth(currentDate)}</h2>
-          <Button variant="ghost" size="icon" className="w-8 h-8">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="w-8 h-8"
+            onClick={() => {
+              const newDate = new Date(currentDate)
+              newDate.setMonth(newDate.getMonth() + 1)
+              setCurrentDate(newDate)
+            }}
+          >
             <ChevronRight className="w-4 h-4" />
           </Button>
         </div>
 
         <div className="px-4 pb-20">
-          <p className="text-center text-sm text-muted-foreground mb-6">共13篇日记</p>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>加载中...</span>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()}>重试</Button>
+            </div>
+          ) : (
+            <>
+              <p className="text-center text-sm text-muted-foreground mb-6">
+                共{diaryEntries.length}篇日记
+              </p>
 
           {/* 今日特别日记 */}
-          <Card className="p-4 mb-6 soft-shadow gentle-transition hover:shadow-lg border-primary/20">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-primary"></div>
-                <Badge className={diaryEntries[0].emotionColor}>{diaryEntries[0].emotion}</Badge>
+          {diaryEntries.length > 0 && (
+            <Card className="p-4 mb-6 soft-shadow gentle-transition hover:shadow-lg border-primary/20">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-primary"></div>
+                  <Badge className={getEmotionColor(diaryEntries[0].emotion)}>
+                    {getEmotionEmoji(diaryEntries[0].emotion)} {diaryEntries[0].emotion}
+                  </Badge>
+                </div>
+                <Link href={`/diary/${diaryEntries[0].id}/edit`}>
+                  <Button variant="ghost" size="icon" className="w-8 h-8 gentle-transition">
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                </Link>
               </div>
-              <Link href={`/diary/${diaryEntries[0].id}/edit`}>
-                <Button variant="ghost" size="icon" className="w-8 h-8 gentle-transition">
-                  <Edit className="w-4 h-4" />
-                </Button>
-              </Link>
-            </div>
 
-            <Link href={`/diary/${diaryEntries[0].id}`}>
-              <div className="cursor-pointer">
-                <h3 className="font-serif font-semibold text-foreground mb-2">{diaryEntries[0].title}</h3>
-                <p className="text-sm text-muted-foreground mb-3 leading-relaxed">{diaryEntries[0].content}</p>
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">{diaryEntries[0].time}</p>
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                      收藏
-                    </Button>
-                    <Button variant="ghost" size="icon" className="w-7 h-7">
-                      <Share2 className="w-3 h-3" />
-                    </Button>
+              <Link href={`/diary/${diaryEntries[0].id}`}>
+                <div className="cursor-pointer">
+                  <h3 className="font-serif font-semibold text-foreground mb-2">{diaryEntries[0].title}</h3>
+                  <p className="text-sm text-muted-foreground mb-3 leading-relaxed line-clamp-2">
+                    {diaryEntries[0].content}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(new Date(diaryEntries[0].created_at), 'full')}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                        收藏
+                      </Button>
+                      <Button variant="ghost" size="icon" className="w-7 h-7">
+                        <Share2 className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          </Card>
+              </Link>
+            </Card>
+          )}
 
           {/* AI情绪洞察 */}
-          <Card className="p-4 mb-6 bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10">
-            <div className="flex items-start gap-3">
-              <Avatar className="w-8 h-8 flex-shrink-0">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs">🦊</AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h4 className="font-medium text-foreground mb-1">AI情绪洞察</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  基于今天的对话内容和情绪，你一种平静的心境正在形成。从你的描述中，我感受到你对生活中小确幸的珍视，这是一种很棒的生活态度。
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">基于今日对话生成</p>
+          {diaryEntries.length > 0 && diaryEntries[0].ai_insight && (
+            <Card className="p-4 mb-6 bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10">
+              <div className="flex items-start gap-3">
+                <Avatar className="w-8 h-8 flex-shrink-0">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">🦊</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                  <h4 className="font-medium text-foreground mb-1">AI情绪洞察</h4>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {diaryEntries[0].ai_insight}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    基于{formatDate(new Date(diaryEntries[0].created_at), 'short')}对话生成
+                  </p>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          )}
 
           {/* 更多日记 */}
-          <div className="space-y-4">
-            <h3 className="font-serif font-semibold text-foreground">更多日记</h3>
+          {diaryEntries.length > 1 && (
+            <div className="space-y-4">
+              <h3 className="font-serif font-semibold text-foreground">更多日记</h3>
 
-            {diaryEntries.slice(1).map((entry) => (
-              <Link key={entry.id} href={`/diary/${entry.id}`}>
-                <Card className="p-4 soft-shadow gentle-transition hover:shadow-lg cursor-pointer">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium text-foreground">{entry.title}</h4>
-                    <Badge variant="outline" className={entry.emotionColor}>
-                      {entry.emotion}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mb-3 leading-relaxed line-clamp-2">{entry.content}</p>
-                  <p className="text-xs text-muted-foreground">{entry.date}</p>
-                </Card>
-              </Link>
-            ))}
-          </div>
+              {diaryEntries.slice(1).map((entry) => (
+                <Link key={entry.id} href={`/diary/${entry.id}`}>
+                  <Card className="p-4 soft-shadow gentle-transition hover:shadow-lg cursor-pointer">
+                    <div className="flex items-start justify-between mb-2">
+                      <h4 className="font-medium text-foreground">{entry.title}</h4>
+                      <Badge variant="outline" className={getEmotionColor(entry.emotion)}>
+                        {getEmotionEmoji(entry.emotion)} {entry.emotion}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3 leading-relaxed line-clamp-2">
+                      {entry.content}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatDate(new Date(entry.created_at), 'full')}
+                    </p>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          )}
 
           {/* 查看全部日记按钮 */}
           <div className="mt-6 text-center">
@@ -176,6 +232,8 @@ export default function DiaryPage() {
               查看全部日记
             </Button>
           </div>
+            </>
+          )}
         </div>
 
         {/* 底部导航 */}

@@ -1,36 +1,88 @@
 "use client"
 
+import { use, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Share2, Heart, MoreHorizontal, ChevronLeft, ChevronRight, Edit } from "lucide-react"
+import { ArrowLeft, Share2, Heart, MoreHorizontal, ChevronLeft, ChevronRight, Edit, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { supabase } from "@/lib/supabase/client"
+import { formatDate, getEmotionColor, getEmotionEmoji, getCurrentDateInfo } from "@/lib/utils"
 
-export default function DiaryDetailPage({ params }: { params: { id: string } }) {
-  const diaryEntry = {
-    id: params.id,
-    title: "平静的午后",
-    content: `今天的阳光格外温暖，还过同市雨在车里看上，便感到我接触了一个小小的温暖风景。我接着一杯茶水，轻嗅一口，便感觉温暖人心的小确幸延续到全身。
+interface DiaryEntry {
+  id: string
+  title: string
+  content: string
+  emotion: string
+  ai_insight?: string
+  created_at: string
+  updated_at: string
+  mood_tags?: string[]
+  weather?: string
+  location?: string
+}
 
-最近总是能在忙碌生活中的意义，也许来自这些小小的瞬间，像是茶香、阳光，还有内心深处的那份宁静。
+export default function DiaryDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
+  const [diaryEntry, setDiaryEntry] = useState<DiaryEntry | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const currentDate = getCurrentDateInfo()
 
-今天午后的阳光透过窗户洒在桌案上，我打开了一本书，它让我想起了童年时光。那些简单而美好的记忆，像是夏日午后的蝉鸣，总是能让人感到温暖。
+  useEffect(() => {
+    async function fetchDiaryEntry() {
+      try {
+        setLoading(true)
+        const { data, error } = await supabase
+          .from('diary_entries')
+          .select('*')
+          .eq('id', id)
+          .single()
 
-这些小小的幸福瞬间，构成了我们生活的底色。`,
-    date: "2023年8月13日",
-    time: "星期日 · 15:30",
-    emotion: "平静",
-    emotionColor: "bg-blue-100 text-blue-800",
+        if (error) {
+          throw error
+        }
+
+        setDiaryEntry(data)
+      } catch (err) {
+        console.error('Error fetching diary entry:', err)
+        setError(err instanceof Error ? err.message : '加载日记失败')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchDiaryEntry()
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>加载中...</span>
+        </div>
+      </div>
+    )
   }
 
-  const aiInsight = {
-    content: `你今天的文字中透露出一种难得的宁静感，从你对阳光、茶香的细腻描述中，我感受到你正在学会从生活的细节中寻找美好。
-
-你提到的"小确幸"概念很有意思，这说明你开始关注当下，珍惜那些看似平凡却温暖人心的瞬间。这种心境的转变，对你的情绪健康很有帮助。`,
-    date: "8月13日生成",
-    tags: ["内心平静", "生活感悟", "当下意识"],
+  if (error || !diaryEntry) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground mb-4">{error || '日记不存在'}</p>
+          <Link href="/diary">
+            <Button>返回日记列表</Button>
+          </Link>
+        </div>
+      </div>
+    )
   }
+
+  const createdDate = new Date(diaryEntry.created_at)
+  const emotionColor = getEmotionColor(diaryEntry.emotion)
+  const emotionEmoji = getEmotionEmoji(diaryEntry.emotion)
 
   return (
     <div className="min-h-screen bg-background paper-texture">
@@ -51,7 +103,7 @@ export default function DiaryDetailPage({ params }: { params: { id: string } }) 
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <ChevronLeft className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">2023年8月</span>
+            <span className="text-sm text-muted-foreground">{currentDate.monthDay}</span>
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
           </div>
 
@@ -62,7 +114,7 @@ export default function DiaryDetailPage({ params }: { params: { id: string } }) 
                 <h1 className="text-xl font-serif font-bold text-foreground">{diaryEntry.title}</h1>
               </div>
               <p className="text-sm text-muted-foreground">
-                {diaryEntry.date} · {diaryEntry.time}
+                {formatDate(createdDate, 'full')}
               </p>
             </div>
             <Link href={`/diary/${diaryEntry.id}/edit`}>
@@ -72,7 +124,21 @@ export default function DiaryDetailPage({ params }: { params: { id: string } }) 
             </Link>
           </div>
 
-          <Badge className={diaryEntry.emotionColor}>{diaryEntry.emotion}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={emotionColor}>
+              {emotionEmoji} {diaryEntry.emotion}
+            </Badge>
+            {diaryEntry.weather && (
+              <Badge variant="outline" className="text-xs">
+                🌤️ {diaryEntry.weather}
+              </Badge>
+            )}
+            {diaryEntry.location && (
+              <Badge variant="outline" className="text-xs">
+                📍 {diaryEntry.location}
+              </Badge>
+            )}
+          </div>
         </div>
 
         {/* 日记内容 */}
@@ -101,27 +167,31 @@ export default function DiaryDetailPage({ params }: { params: { id: string } }) 
         </Card>
 
         {/* AI情绪洞察 */}
-        <Card className="p-4 bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10">
-          <div className="flex items-start gap-3">
-            <Avatar className="w-8 h-8 flex-shrink-0">
-              <AvatarFallback className="bg-primary text-primary-foreground text-xs">🦊</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <h4 className="font-medium text-foreground mb-2">AI情绪洞察</h4>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-3">{aiInsight.content}</p>
+        {diaryEntry.ai_insight && (
+          <Card className="p-4 bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10">
+            <div className="flex items-start gap-3">
+              <Avatar className="w-8 h-8 flex-shrink-0">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs">🦊</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h4 className="font-medium text-foreground mb-2">AI情绪洞察</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-3">{diaryEntry.ai_insight}</p>
 
-              <div className="flex flex-wrap gap-2 mb-2">
-                {aiInsight.tags.map((tag) => (
-                  <Badge key={tag} variant="outline" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
+                {diaryEntry.mood_tags && diaryEntry.mood_tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {diaryEntry.mood_tags.map((tag) => (
+                      <Badge key={tag} variant="outline" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground">{formatDate(createdDate, 'short')}生成</p>
               </div>
-
-              <p className="text-xs text-muted-foreground">{aiInsight.date}</p>
             </div>
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
     </div>
   )
