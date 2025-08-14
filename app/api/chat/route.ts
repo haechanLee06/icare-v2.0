@@ -14,19 +14,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User ID is required" }, { status: 401 })
     }
 
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return request.cookies.get(name)?.value
-          },
-          set() {},
-          remove() {},
+    const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
         },
+        set() {},
+        remove() {},
       },
-    )
+    })
 
     // Get the latest user message for emotion analysis
     const userMessage = messages[messages.length - 1]
@@ -86,21 +82,11 @@ export async function POST(request: NextRequest) {
         }
 
         let assistantMessage = ""
-        let streamTimeout = setTimeout(() => {
-          console.log("Stream timeout, closing connection")
-          controller.close()
-        }, 45000) // 45 second timeout for entire stream
 
         try {
           while (true) {
             const { done, value } = await reader.read()
             if (done) break
-
-            clearTimeout(streamTimeout)
-            streamTimeout = setTimeout(() => {
-              console.log("Stream timeout, closing connection")
-              controller.close()
-            }, 45000)
 
             const chunk = decoder.decode(value)
             const lines = chunk.split("\n")
@@ -109,7 +95,6 @@ export async function POST(request: NextRequest) {
               if (line.startsWith("data: ")) {
                 const data = line.slice(6)
                 if (data === "[DONE]") {
-                  clearTimeout(streamTimeout) // Clear timeout when done
                   // Save complete assistant message to database
                   if (assistantMessage.trim()) {
                     await supabase.from("messages").insert([
@@ -149,7 +134,6 @@ export async function POST(request: NextRequest) {
             }
           }
         } catch (error) {
-          clearTimeout(streamTimeout) // Clear timeout on error
           console.error("Stream error:", error)
           controller.error(error)
         }

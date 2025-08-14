@@ -47,9 +47,6 @@ export async function callDeepSeekAPI(messages: ChatMessage[]): Promise<Response
   const allMessages: ChatMessage[] = [{ role: "system", content: XIAOYU_SYSTEM_PROMPT }, ...messages]
 
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
-
     const response = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: {
@@ -62,7 +59,7 @@ export async function callDeepSeekAPI(messages: ChatMessage[]): Promise<Response
         stream: true,
         max_tokens: 512,
         enable_thinking: true,
-        thinking_budget: 2048, // Reduced thinking budget for faster responses
+        thinking_budget: 4096,
         min_p: 0.05,
         temperature: 0.7,
         top_p: 0.7,
@@ -70,10 +67,7 @@ export async function callDeepSeekAPI(messages: ChatMessage[]): Promise<Response
         frequency_penalty: 0.5,
         n: 1,
       }),
-      signal: controller.signal, // Added abort signal for timeout
     })
-
-    clearTimeout(timeoutId) // Clear timeout if request succeeds
 
     if (!response.ok) {
       const errorText = await response.text()
@@ -85,9 +79,6 @@ export async function callDeepSeekAPI(messages: ChatMessage[]): Promise<Response
     return response
   } catch (error) {
     console.error("Failed to call DeepSeek API:", error)
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("请求超时，请稍后重试")
-    }
     throw error
   }
 }
