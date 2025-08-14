@@ -11,14 +11,14 @@
 ### 2. 配置环境变量
 在 `.env.local` 文件中添加以下内容：
 
-```bash
+\`\`\`bash
 # Supabase 配置
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url_here
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # 其他环境变量
 NODE_ENV=development
-```
+\`\`\`
 
 ### 3. 获取 Supabase 配置值
 
@@ -36,9 +36,9 @@ NODE_ENV=development
 
 ### 4. 重启开发服务器
 配置完成后，重启开发服务器：
-```bash
+\`\`\`bash
 npm run dev
-```
+\`\`\`
 
 ## 注意事项
 - 环境变量必须以 `NEXT_PUBLIC_` 开头才能在客户端使用
