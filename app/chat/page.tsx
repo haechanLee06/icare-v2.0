@@ -20,46 +20,93 @@ export default function ChatPage() {
   const router = useRouter()
 
   useEffect(() => {
+    console.log("📱 [Chat Page] Component state update:", {
+      messagesCount: messages.length,
+      isLoading,
+      error,
+      conversationId,
+      inputValue: inputValue.substring(0, 50) + (inputValue.length > 50 ? "..." : ""),
+      emotionSuggestions,
+    })
+  }, [messages.length, isLoading, error, conversationId, inputValue, emotionSuggestions])
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
   useEffect(() => {
     const updateEmotionSuggestions = async () => {
       if (messages.length > 0) {
+        console.group("🎭 [Chat Page] Updating Emotion Suggestions")
+        console.log("📊 Messages count:", messages.length)
+
         try {
           const chatMessages = messages.map((msg) => ({
             role: msg.role,
             content: msg.content,
           }))
+
+          console.log("📤 Requesting emotion suggestions for messages:", chatMessages.length)
+          const startTime = performance.now()
+
           const suggestions = await getSmartEmotionSuggestions(chatMessages)
+
+          const duration = performance.now() - startTime
+          console.log(`✅ Emotion suggestions received in ${duration.toFixed(2)}ms:`, suggestions)
+
           setEmotionSuggestions(suggestions)
         } catch (error) {
-          console.error("Error updating emotion suggestions:", error)
+          console.error("❌ Error updating emotion suggestions:", error)
+        } finally {
+          console.groupEnd()
         }
       }
     }
 
-    // 延迟更新，避免频繁调用
     const timeoutId = setTimeout(updateEmotionSuggestions, 1000)
     return () => clearTimeout(timeoutId)
   }, [messages])
 
   const handleSendMessage = async () => {
+    console.group("📨 [Chat Page] Handle Send Message")
+    console.log("📝 Input value:", inputValue)
+    console.log("🔄 Is loading:", isLoading)
+    console.log("✅ Can send:", inputValue.trim() && !isLoading)
+
     if (inputValue.trim() && !isLoading) {
       const messageContent = inputValue
+      console.log("🚀 Sending message:", messageContent)
+
       setInputValue("")
+      console.log("🧹 Input cleared")
+
       await sendMessage(messageContent)
+      console.log("✅ Message sent successfully")
+    } else {
+      console.log("⚠️ Message not sent - invalid conditions")
     }
+    console.groupEnd()
   }
 
   const handleGenerateDiary = async () => {
+    console.group("📖 [Chat Page] Generate Diary")
+    console.log("🔗 Conversation ID:", conversationId)
+    console.log("📊 Messages count:", messages.length)
+    console.log("✅ Can generate:", conversationId && messages.length > 0)
+
     if (!conversationId || messages.length === 0) {
+      console.warn("⚠️ Cannot generate diary - missing conversation or messages")
       alert("请先进行一些对话，然后再生成日记")
+      console.groupEnd()
       return
     }
 
     setIsGeneratingDiary(true)
+    console.log("🔄 Diary generation started")
+    const startTime = performance.now()
+
     try {
+      console.log("📤 Sending diary generation request")
       const response = await fetch("/api/diary/generate", {
         method: "POST",
         headers: {
@@ -70,22 +117,41 @@ export default function ChatPage() {
         }),
       })
 
+      const fetchTime = performance.now() - startTime
+      console.log(`📡 Diary API response received in ${fetchTime.toFixed(2)}ms`)
+      console.log("📋 Response status:", response.status, response.ok)
+
       if (!response.ok) {
-        throw new Error("Failed to generate diary")
+        throw new Error(`Diary generation failed: ${response.status} ${response.statusText}`)
       }
 
       const result = await response.json()
+      console.log("📄 Diary generation result:", result)
+
       if (result.success) {
-        // 跳转到生成的日记页面
+        const totalTime = performance.now() - startTime
+        console.log(`🎉 Diary generated successfully in ${totalTime.toFixed(2)}ms`)
+        console.log("📖 Generated diary ID:", result.diary.id)
+        console.log("🔄 Navigating to diary page")
+
         router.push(`/diary/${result.diary.id}`)
       } else {
         throw new Error(result.error || "Failed to generate diary")
       }
     } catch (error) {
-      console.error("Error generating diary:", error)
+      const errorTime = performance.now() - startTime
+      console.error(`❌ Diary generation error after ${errorTime.toFixed(2)}ms:`, error)
+      console.error("🔍 Error details:", {
+        message: error instanceof Error ? error.message : String(error),
+        conversationId,
+        messagesCount: messages.length,
+      })
+
       alert("生成日记失败，请稍后再试")
     } finally {
       setIsGeneratingDiary(false)
+      console.log("🏁 Diary generation completed, loading state reset")
+      console.groupEnd()
     }
   }
 
@@ -186,11 +252,14 @@ export default function ChatPage() {
             <span className="text-xs text-muted-foreground">今天感觉：</span>
             {emotionSuggestions.map((emotion, index) => (
               <Button
-                key={`${emotion}-${index}`} // 使用emotion和index组合作为key，避免重复key警告
+                key={`${emotion}-${index}`}
                 variant="outline"
                 size="sm"
                 className="h-7 px-3 text-xs rounded-full border-primary/30 text-primary hover:bg-primary/10 gentle-transition bg-transparent"
-                onClick={() => setInputValue(emotion)}
+                onClick={() => {
+                  console.log("🎭 [Chat Page] Emotion suggestion clicked:", emotion)
+                  setInputValue(emotion)
+                }}
               >
                 {emotion}
               </Button>
@@ -225,10 +294,18 @@ export default function ChatPage() {
             <div className="flex-1 relative">
               <Input
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={(e) => {
+                  console.log("⌨️ [Chat Page] Input changed:", e.target.value.substring(0, 50))
+                  setInputValue(e.target.value)
+                }}
                 placeholder="分享你的感受..."
                 className="pr-12 rounded-full border-border/50 bg-background/50 gentle-transition focus:bg-background"
-                onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    console.log("⏎ [Chat Page] Enter key pressed")
+                    handleSendMessage()
+                  }
+                }}
                 disabled={isLoading}
               />
               <Button
