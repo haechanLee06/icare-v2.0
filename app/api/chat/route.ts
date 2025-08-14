@@ -137,12 +137,21 @@ export async function POST(request: NextRequest) {
         let assistantMessage = ""
         let chunkCount = 0
         let totalCharsReceived = 0
+        let lastChunkTime = Date.now()
+        let buffer = "" // 添加缓冲区处理不完整的chunk
         const streamStartTime = Date.now()
 
         console.log(`[${requestId}] 📡 Starting stream processing`)
 
         try {
           while (true) {
+            // 检查流式响应超时
+            const now = Date.now()
+            if (now - lastChunkTime > 15000) { // 15秒超时
+              console.warn(`[${requestId}] ⚠️ Stream timeout - no new chunks for 15 seconds`)
+              break
+            }
+
             const { done, value } = await reader.read()
             if (done) {
               console.log(
@@ -151,13 +160,28 @@ export async function POST(request: NextRequest) {
               break
             }
 
-            const chunk = decoder.decode(value)
             chunkCount++
-            const lines = chunk.split("\n")
+            lastChunkTime = Date.now()
+
+            // 防止无限循环
+            if (chunkCount > 1000) {
+              console.warn(`[${requestId}] ⚠️ Too many chunks received, stopping stream`)
+              break
+            }
+
+            const chunk = decoder.decode(value, { stream: true })
+            buffer += chunk // 添加到缓冲区
+
+            // 处理缓冲区中的完整行
+            const lines = buffer.split("\n")
+            buffer = lines.pop() || "" // 保留最后一行（可能不完整）
 
             for (const line of lines) {
+              if (line.trim() === "") continue // 跳过空行
+              
               if (line.startsWith("data: ")) {
-                const data = line.slice(6)
+                const data = line.slice(6).trim()
+                
                 if (data === "[DONE]") {
                   const streamEndTime = Date.now()
                   console.log(`[${requestId}] 🏁 Stream finished in ${streamEndTime - streamStartTime}ms`)
@@ -212,6 +236,8 @@ export async function POST(request: NextRequest) {
                     const content = parsed.choices[0].delta.content
                     assistantMessage += content
                     totalCharsReceived += content.length
+                    
+                    // 发送内容到客户端
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`))
 
                     // Log every 10th chunk to avoid spam
@@ -222,7 +248,10 @@ export async function POST(request: NextRequest) {
                     }
                   }
                 } catch (e) {
-                  console.warn(`[${requestId}] ⚠️ Skipped invalid JSON chunk: ${data.slice(0, 50)}...`)
+                  // 只记录非空数据的解析错误
+                  if (data && data !== "[DONE]" && data.trim() !== "") {
+                    console.warn(`[${requestId}] ⚠️ Failed to parse JSON: "${data.slice(0, 100)}..."`)
+                  }
                 }
               }
             }
@@ -230,6 +259,17 @@ export async function POST(request: NextRequest) {
         } catch (error) {
           const streamErrorTime = Date.now() - streamStartTime
           console.error(`[${requestId}] ❌ Stream error after ${streamErrorTime}ms:`, error)
+          
+          // 发送错误信息到客户端
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({
+                error: "Stream processing error",
+                message: error instanceof Error ? error.message : "Unknown error",
+              })}\n\n`,
+            ),
+          )
+          
           controller.error(error)
         }
       },

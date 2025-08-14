@@ -63,6 +63,18 @@ export function useChat(): UseChatReturn {
         return [...prev, userMessage]
       })
 
+      // 创建AbortController用于超时控制
+      const controller = new AbortController()
+      let timeoutId: NodeJS.Timeout | null = null
+      
+      // 设置超时，但只在请求发送前设置
+      const setupTimeout = () => {
+        timeoutId = setTimeout(() => {
+          console.warn("⚠️ Request timeout after 45 seconds, aborting...")
+          controller.abort()
+        }, 45000) // 45秒超时
+      }
+
       try {
         // Prepare messages for API
         const apiMessages = [...messages, userMessage].map((msg) => ({
@@ -76,6 +88,9 @@ export function useChat(): UseChatReturn {
         console.log("  - User ID:", user.id)
         console.log("  - API Messages:", apiMessages)
 
+        // 在发送请求前设置超时
+        setupTimeout()
+
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: {
@@ -86,7 +101,14 @@ export function useChat(): UseChatReturn {
             conversationId,
             userId: user.id,
           }),
+          signal: controller.signal,
         })
+
+        // 请求成功后清除超时
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
 
         const fetchTime = performance.now()
         console.log(`⚡ API response received in ${(fetchTime - startTime).toFixed(2)}ms`)
@@ -108,6 +130,7 @@ export function useChat(): UseChatReturn {
         console.log("🌊 Starting streaming response processing")
         let assistantContent = ""
         let chunkCount = 0
+        let lastChunkTime = Date.now()
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
@@ -122,12 +145,27 @@ export function useChat(): UseChatReturn {
           return [...prev, assistantMessage]
         })
 
+        // 流式响应处理循环
         while (true) {
+          // 检查流式响应是否超时（每个chunk之间超过10秒）
+          const now = Date.now()
+          if (now - lastChunkTime > 10000) {
+            console.warn("⚠️ Streaming timeout - no new chunks for 10 seconds")
+            break
+          }
+
           const { done, value } = await reader.read()
           chunkCount++
+          lastChunkTime = Date.now()
 
           if (done) {
             console.log(`✅ Streaming completed after ${chunkCount} chunks`)
+            break
+          }
+
+          // 防止无限循环
+          if (chunkCount > 1000) {
+            console.warn("⚠️ Too many chunks received, stopping stream")
             break
           }
 
@@ -174,6 +212,12 @@ export function useChat(): UseChatReturn {
         console.log(`🎉 Message sending completed successfully in ${totalTime.toFixed(2)}ms`)
         console.log("📊 Final assistant content length:", assistantContent.length)
       } catch (err) {
+        // 确保清除超时定时器
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        
         const errorTime = performance.now() - startTime
         console.error(`❌ Error occurred after ${errorTime.toFixed(2)}ms:`, err)
         console.error("🔍 Error details:", {
@@ -183,13 +227,33 @@ export function useChat(): UseChatReturn {
           messagesCount: messages.length,
         })
 
-        setError(err instanceof Error ? err.message : "An error occurred")
+        // 处理不同类型的错误
+        let errorMessage = "发送消息时发生错误"
+        if (err instanceof Error) {
+          if (err.name === 'AbortError') {
+            errorMessage = "请求超时，请稍后重试"
+          } else if (err.message.includes('timeout')) {
+            errorMessage = "响应超时，请稍后重试"
+          } else if (err.message.includes('API request failed')) {
+            errorMessage = "服务器错误，请稍后重试"
+          } else {
+            errorMessage = err.message
+          }
+        }
+
+        setError(errorMessage)
         // Remove the user message if there was an error
         setMessages((prev) => {
           console.log("🗑️ Removing user message due to error")
           return prev.slice(0, -1)
         })
       } finally {
+        // 确保清除超时定时器
+        if (timeoutId) {
+          clearTimeout(timeoutId)
+          timeoutId = null
+        }
+        
         setIsLoading(false)
         console.log("🏁 Request completed, loading state set to false")
         console.groupEnd()

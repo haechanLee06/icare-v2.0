@@ -41,12 +41,20 @@ export const XIAOYU_SYSTEM_PROMPT = `你是一个ai聊天机器人，扮演"小�
 export async function callDeepSeekAPI(messages: ChatMessage[], requestId?: string): Promise<Response> {
   const baseUrl = "https://api.siliconflow.cn"
   const logPrefix = requestId ? `[${requestId}]` : "[DeepSeek]"
+  
+  // 使用环境变量获取API密钥
+  const apiKey = process.env.DEEPSEEK_API_KEY || "sk-cbycxbhbhvitceulyshalzwpukebcupdfmgulilvfzhwkrxs"
+  
+  if (!apiKey) {
+    throw new Error("DeepSeek API key not configured")
+  }
 
   console.log(`${logPrefix} 🔧 DeepSeek API configuration:`, {
     baseUrl,
     model: "deepseek-ai/DeepSeek-V3",
     messageCount: messages.length,
     hasSystemPrompt: true,
+    hasApiKey: !!apiKey,
   })
 
   // Add system prompt as the first message
@@ -88,14 +96,21 @@ export async function callDeepSeekAPI(messages: ChatMessage[], requestId?: strin
     const fetchStartTime = Date.now()
     console.log(`${logPrefix} 🌐 Making HTTP request to ${baseUrl}/v1/chat/completions`)
 
+    // 添加超时控制
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30秒超时
+
     const response = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: {
-        Authorization: "Bearer sk-cbycxbhbhvitceulyshalzwpukebcupdfmgulilvfzhwkrxs",
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(requestPayload),
+      signal: controller.signal,
     })
+
+    clearTimeout(timeoutId)
 
     const fetchEndTime = Date.now()
     const fetchDuration = fetchEndTime - fetchStartTime
@@ -122,10 +137,131 @@ export async function callDeepSeekAPI(messages: ChatMessage[], requestId?: strin
       throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`)
     }
 
+    // 验证响应是否支持流式处理
+    const contentType = response.headers.get("content-type")
+    if (!contentType || !contentType.includes("text/plain")) {
+      console.warn(`${logPrefix} ⚠️ Unexpected content type: ${contentType}`)
+    }
+
+    // 验证响应体是否存在
+    if (!response.body) {
+      throw new Error("DeepSeek API response has no body")
+    }
+
     console.log(`${logPrefix} ✅ DeepSeek API call successful, returning stream`)
+    console.log(`------------!!!${response.body} ✅ response.body`)
     return response
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`${logPrefix} ❌ Request timeout after 30 seconds`)
+      throw new Error('API request timeout')
+    }
+    
     console.error(`${logPrefix} ❌ Failed to call DeepSeek API:`, {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+    })
+    throw error
+  }
+}
+
+export async function callDeepSeekAPISimple(messages: ChatMessage[], requestId?: string): Promise<Response> {
+  const baseUrl = "https://api.siliconflow.cn"
+  const logPrefix = requestId ? `[${requestId}]` : "[DeepSeek-Simple]"
+  
+  // 使用环境变量获取API密钥
+  const apiKey = process.env.DEEPSEEK_API_KEY || "sk-cbycxbhbhvitceulyshalzwpukebcupdfmgulilvfzhwkrxs"
+  
+  if (!apiKey) {
+    throw new Error("DeepSeek API key not configured")
+  }
+
+  console.log(`${logPrefix} 🔧 DeepSeek Simple API configuration:`, {
+    baseUrl,
+    model: "deepseek-ai/DeepSeek-V3",
+    messageCount: messages.length,
+    hasSystemPrompt: true,
+    hasApiKey: !!apiKey,
+  })
+
+  // Add system prompt as the first message
+  const allMessages: ChatMessage[] = [{ role: "system", content: XIAOYU_SYSTEM_PROMPT }, ...messages]
+
+  const requestPayload = {
+    model: "deepseek-ai/DeepSeek-V3",
+    messages: allMessages,
+    stream: false, // 非流式
+    max_tokens: 512,
+    enable_thinking: true,
+    thinking_budget: 4096,
+    min_p: 0.05,
+    temperature: 0.7,
+    top_p: 0.7,
+    top_k: 50,
+    frequency_penalty: 0.5,
+    n: 1,
+  }
+
+  console.log(`${logPrefix} 📤 Simple API request payload:`, {
+    model: requestPayload.model,
+    stream: requestPayload.stream,
+    max_tokens: requestPayload.max_tokens,
+    messageCount: allMessages.length,
+  })
+
+  try {
+    const fetchStartTime = Date.now()
+    console.log(`${logPrefix} 🌐 Making HTTP request to ${baseUrl}/v1/chat/completions`)
+
+    // 添加超时控制
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30秒超时
+
+    const response = await fetch(`${baseUrl}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestPayload),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    const fetchEndTime = Date.now()
+    const fetchDuration = fetchEndTime - fetchStartTime
+
+    console.log(`${logPrefix} 📡 HTTP response received in ${fetchDuration}ms:`, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: {
+        "content-type": response.headers.get("content-type"),
+        "content-length": response.headers.get("content-length"),
+      },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      console.error(`${logPrefix} ❌ DeepSeek API error response:`, {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody: errorText,
+        requestDuration: fetchDuration,
+      })
+      throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`)
+    }
+
+    console.log(`${logPrefix} ✅ DeepSeek Simple API call successful`)
+    return response
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`${logPrefix} ❌ Request timeout after 30 seconds`)
+      throw new Error('API request timeout')
+    }
+    
+    console.error(`${logPrefix} ❌ Failed to call DeepSeek Simple API:`, {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       timestamp: new Date().toISOString(),
