@@ -38,47 +38,98 @@ export const XIAOYU_SYSTEM_PROMPT = `你是一个ai聊天机器人，扮演"小�
 
 请用温柔、理解的语气回复，避免说教式的建议，多用倾听和共情的方式与用户交流。`
 
-export async function callDeepSeekAPI(messages: ChatMessage[]): Promise<Response> {
+export async function callDeepSeekAPI(messages: ChatMessage[], requestId?: string): Promise<Response> {
   const baseUrl = "https://api.siliconflow.cn"
+  const logPrefix = requestId ? `[${requestId}]` : "[DeepSeek]"
 
-  console.log("Using API base URL:", baseUrl)
+  console.log(`${logPrefix} 🔧 DeepSeek API configuration:`, {
+    baseUrl,
+    model: "deepseek-ai/DeepSeek-V3",
+    messageCount: messages.length,
+    hasSystemPrompt: true,
+  })
 
   // Add system prompt as the first message
   const allMessages: ChatMessage[] = [{ role: "system", content: XIAOYU_SYSTEM_PROMPT }, ...messages]
 
+  console.log(`${logPrefix} 📋 Final message array:`, {
+    totalMessages: allMessages.length,
+    systemPromptLength: XIAOYU_SYSTEM_PROMPT.length,
+    userMessages: allMessages.filter((m) => m.role === "user").length,
+    assistantMessages: allMessages.filter((m) => m.role === "assistant").length,
+  })
+
+  const requestPayload = {
+    model: "deepseek-ai/DeepSeek-V3",
+    messages: allMessages,
+    stream: true,
+    max_tokens: 512,
+    enable_thinking: true,
+    thinking_budget: 4096,
+    min_p: 0.05,
+    temperature: 0.7,
+    top_p: 0.7,
+    top_k: 50,
+    frequency_penalty: 0.5,
+    n: 1,
+  }
+
+  console.log(`${logPrefix} 📤 API request payload:`, {
+    model: requestPayload.model,
+    stream: requestPayload.stream,
+    max_tokens: requestPayload.max_tokens,
+    enable_thinking: requestPayload.enable_thinking,
+    thinking_budget: requestPayload.thinking_budget,
+    temperature: requestPayload.temperature,
+    messageContentLengths: allMessages.map((m) => m.content.length),
+  })
+
   try {
+    const fetchStartTime = Date.now()
+    console.log(`${logPrefix} 🌐 Making HTTP request to ${baseUrl}/v1/chat/completions`)
+
     const response = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: "Bearer sk-cbycxbhbhvitceulyshalzwpukebcupdfmgulilvfzhwkrxs",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "deepseek-ai/DeepSeek-V3",
-        messages: allMessages,
-        stream: true,
-        max_tokens: 512,
-        enable_thinking: true,
-        thinking_budget: 4096,
-        min_p: 0.05,
-        temperature: 0.7,
-        top_p: 0.7,
-        top_k: 50,
-        frequency_penalty: 0.5,
-        n: 1,
-      }),
+      body: JSON.stringify(requestPayload),
+    })
+
+    const fetchEndTime = Date.now()
+    const fetchDuration = fetchEndTime - fetchStartTime
+
+    console.log(`${logPrefix} 📡 HTTP response received in ${fetchDuration}ms:`, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: {
+        "content-type": response.headers.get("content-type"),
+        "content-length": response.headers.get("content-length"),
+        "x-ratelimit-remaining": response.headers.get("x-ratelimit-remaining"),
+        "x-ratelimit-reset": response.headers.get("x-ratelimit-reset"),
+      },
     })
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error(`DeepSeek API error: ${response.status} ${response.statusText}`)
-      console.error("Error response:", errorText)
+      console.error(`${logPrefix} ❌ DeepSeek API error response:`, {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody: errorText,
+        requestDuration: fetchDuration,
+      })
       throw new Error(`DeepSeek API error: ${response.status} - ${errorText}`)
     }
 
+    console.log(`${logPrefix} ✅ DeepSeek API call successful, returning stream`)
     return response
   } catch (error) {
-    console.error("Failed to call DeepSeek API:", error)
+    console.error(`${logPrefix} ❌ Failed to call DeepSeek API:`, {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+    })
     throw error
   }
 }
