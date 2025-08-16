@@ -34,10 +34,21 @@ export default function DiaryDetailPage({ params }: { params: Promise<{ id: stri
     async function fetchDiaryEntry() {
       try {
         setLoading(true)
+        
+        // 获取当前用户信息
+        const userStr = localStorage.getItem("user")
+        if (!userStr) {
+          setError("用户未登录")
+          return
+        }
+        
+        const user = JSON.parse(userStr)
+        
         const { data, error } = await supabase
           .from('diary_entries')
           .select('*')
           .eq('id', id)
+          .eq('user_id', user.id)  // 添加用户ID过滤，确保用户只能访问自己的日记
           .single()
 
         if (error) {

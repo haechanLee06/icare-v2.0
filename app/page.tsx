@@ -199,7 +199,7 @@ export default function HomePage() {
         <main className="px-4 pb-20">
           {/* 问候语 */}
           <div className="mb-6">
-            <h2 className="text-2xl font-serif font-bold text-foreground mb-2">早安，{user?.username || "朋友"}</h2>
+            <h2 className="text-2xl font-serif font-bold text-foreground mb-2">你好，{user?.username || "朋友"}</h2>
             <p className="text-muted-foreground">今天想和我聊聊什么呢？</p>
 
             <div className="flex items-center gap-4 mt-4">

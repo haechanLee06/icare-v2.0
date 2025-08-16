@@ -21,6 +21,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { AuthGuard } from "@/components/auth-guard"
+import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase/client"
 import { formatDate, getEmotionColor, getEmotionEmoji, getCurrentDateInfo } from "@/lib/utils"
 
@@ -38,6 +39,7 @@ interface DiaryEntry {
 }
 
 export default function DiaryPage() {
+  const { user } = useAuth()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,15 +50,27 @@ export default function DiaryPage() {
     async function fetchDiaryEntries() {
       try {
         setLoading(true)
+        
+        // 使用认证上下文获取当前用户信息
+        if (!user || !user.id) {
+          setError("用户未登录")
+          return
+        }
+        
+        console.log("Fetching diary entries for user:", user.id, "Type:", typeof user.id)
+        
         const { data, error } = await supabase
           .from('diary_entries')
           .select('*')
+          .eq('user_id', user.id)  // 确保用户ID类型匹配
           .order('created_at', { ascending: false })
 
         if (error) {
+          console.error('Supabase error:', error)
           throw error
         }
 
+        console.log("Fetched diary entries:", data)
         setDiaryEntries(data || [])
       } catch (err) {
         console.error('Error fetching diary entries:', err)
@@ -66,8 +80,10 @@ export default function DiaryPage() {
       }
     }
 
-    fetchDiaryEntries()
-  }, [])
+    if (user) {
+      fetchDiaryEntries()
+    }
+  }, [user])
 
   const formatMonth = (date: Date) => {
     return `${date.getFullYear()}年${date.getMonth() + 1}月`

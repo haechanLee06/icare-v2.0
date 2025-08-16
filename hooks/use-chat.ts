@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { getCurrentUser } from "@/lib/auth"
+import { useAuth } from "@/contexts/auth-context"
 
 export interface Message {
   id: string
@@ -20,6 +20,7 @@ export interface UseChatReturn {
 }
 
 export function useChat(): UseChatReturn {
+  const { user } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,7 +34,6 @@ export function useChat(): UseChatReturn {
       console.log("💬 Current messages count:", messages.length)
       console.log("🔗 Conversation ID:", conversationId)
 
-      const user = getCurrentUser()
       console.log("👤 Current user:", user ? { id: user.id, username: user.username } : "Not logged in")
 
       if (!user) {
