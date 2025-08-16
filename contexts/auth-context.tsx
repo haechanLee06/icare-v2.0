@@ -22,6 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Check for existing user session
     const currentUser = getCurrentUser()
+    console.log("AuthContext - getCurrentUser result:", currentUser)
     setUser(currentUser)
     setLoading(false)
 

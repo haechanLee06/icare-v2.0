@@ -171,7 +171,7 @@ export default function ChatPage() {
               </Button>
             </Link>
             <div>
-              <h1 className="font-serif font-semibold text-foreground">心语对话1</h1>
+              <h1 className="font-serif font-semibold text-foreground">心语对话</h1>
               <p className="text-xs text-muted-foreground">{isLoading ? "小愈正在思考..." : "在线"}</p>
             </div>
           </div>

@@ -14,8 +14,11 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading } = useAuth()
   const router = useRouter()
 
+  console.log("AuthGuard - user:", user, "loading:", loading)
+
   useEffect(() => {
     if (!loading && !user) {
+      console.log("No user found, redirecting to login")
       router.push("/auth/login")
     }
   }, [user, loading, router])

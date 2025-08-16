@@ -11,20 +11,12 @@ export async function POST(request: NextRequest) {
   try {
     const { messages, conversationId, userId } = await request.json()
 
-    console.log(`[${requestId}] 📝 Request details:`, {
-      userId,
-      conversationId,
-      messageCount: messages?.length || 0,
-      lastMessagePreview: messages?.[messages.length - 1]?.content?.slice(0, 100) + "...",
-    })
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      console.error(`[${requestId}] ❌ Invalid messages array`)
       return NextResponse.json({ error: "Messages are required" }, { status: 400 })
     }
 
     if (!userId) {
-      console.error(`[${requestId}] ❌ Missing user ID`)
       return NextResponse.json({ error: "User ID is required" }, { status: 401 })
     }
 
@@ -44,23 +36,14 @@ export async function POST(request: NextRequest) {
 
     // Get the latest user message for emotion analysis
     const userMessage = messages[messages.length - 1]
-    console.log(`[${requestId}] 🎭 Analyzing emotion for message: "${userMessage.content.slice(0, 50)}..."`)
-
     const emotionStartTime = Date.now()
     const emotion = analyzeEmotion(userMessage.content)
     const emotionEndTime = Date.now()
-
-    console.log(`[${requestId}] 🎭 Emotion analysis completed in ${emotionEndTime - emotionStartTime}ms:`, {
-      emotion: emotion.emotion,
-      intensity: emotion.intensity,
-      keywords: emotion.keywords,
-    })
 
     // Save user message to database
     let currentConversationId = conversationId
 
     if (!currentConversationId) {
-      console.log(`[${requestId}] 💬 Creating new conversation`)
       const convStartTime = Date.now()
 
       // Create new conversation
@@ -78,18 +61,13 @@ export async function POST(request: NextRequest) {
       const convEndTime = Date.now()
 
       if (convError) {
-        console.error(`[${requestId}] ❌ Error creating conversation in ${convEndTime - convStartTime}ms:`, convError)
         return NextResponse.json({ error: "Failed to create conversation" }, { status: 500 })
       }
 
       currentConversationId = conversation.id
-      console.log(
-        `[${requestId}] ✅ Conversation created in ${convEndTime - convStartTime}ms, ID: ${currentConversationId}`,
-      )
     }
 
     // Save user message
-    console.log(`[${requestId}] 💾 Saving user message to database`)
     const msgSaveStartTime = Date.now()
 
     const { error: userMsgError } = await supabase.from("messages").insert([
@@ -103,23 +81,12 @@ export async function POST(request: NextRequest) {
 
     const msgSaveEndTime = Date.now()
 
-    if (userMsgError) {
-      console.error(
-        `[${requestId}] ❌ Error saving user message in ${msgSaveEndTime - msgSaveStartTime}ms:`,
-        userMsgError,
-      )
-    } else {
-      console.log(`[${requestId}] ✅ User message saved in ${msgSaveEndTime - msgSaveStartTime}ms`)
-    }
-
     // Call DeepSeek API
-    console.log(`[${requestId}] 🤖 Calling DeepSeek API with ${messages.length} messages`)
     const apiCallStartTime = Date.now()
 
     const response = await callDeepSeekAPI(messages, requestId)
 
     const apiCallEndTime = Date.now()
-    console.log(`[${requestId}] 🤖 DeepSeek API call completed in ${apiCallEndTime - apiCallStartTime}ms`)
 
     // Create a readable stream for the response
     const encoder = new TextEncoder()
@@ -129,7 +96,6 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         const reader = response.body?.getReader()
         if (!reader) {
-          console.error(`[${requestId}] ❌ No reader available from API response`)
           controller.close()
           return
         }
@@ -141,22 +107,17 @@ export async function POST(request: NextRequest) {
         let buffer = "" // 添加缓冲区处理不完整的chunk
         const streamStartTime = Date.now()
 
-        console.log(`[${requestId}] 📡 Starting stream processing`)
 
         try {
           while (true) {
             // 检查流式响应超时
             const now = Date.now()
             if (now - lastChunkTime > 15000) { // 15秒超时
-              console.warn(`[${requestId}] ⚠️ Stream timeout - no new chunks for 15 seconds`)
               break
             }
 
             const { done, value } = await reader.read()
             if (done) {
-              console.log(
-                `[${requestId}] 📡 Stream completed after ${chunkCount} chunks, ${totalCharsReceived} characters`,
-              )
               break
             }
 
@@ -165,7 +126,6 @@ export async function POST(request: NextRequest) {
 
             // 防止无限循环
             if (chunkCount > 1000) {
-              console.warn(`[${requestId}] ⚠️ Too many chunks received, stopping stream`)
               break
             }
 
@@ -184,11 +144,9 @@ export async function POST(request: NextRequest) {
                 
                 if (data === "[DONE]") {
                   const streamEndTime = Date.now()
-                  console.log(`[${requestId}] 🏁 Stream finished in ${streamEndTime - streamStartTime}ms`)
 
                   // Save complete assistant message to database
                   if (assistantMessage.trim()) {
-                    console.log(`[${requestId}] 💾 Saving assistant message (${assistantMessage.length} chars)`)
                     const assistantSaveStartTime = Date.now()
 
                     const { error: assistantMsgError } = await supabase.from("messages").insert([
@@ -200,17 +158,6 @@ export async function POST(request: NextRequest) {
                     ])
 
                     const assistantSaveEndTime = Date.now()
-
-                    if (assistantMsgError) {
-                      console.error(
-                        `[${requestId}] ❌ Error saving assistant message in ${assistantSaveEndTime - assistantSaveStartTime}ms:`,
-                        assistantMsgError,
-                      )
-                    } else {
-                      console.log(
-                        `[${requestId}] ✅ Assistant message saved in ${assistantSaveEndTime - assistantSaveStartTime}ms`,
-                      )
-                    }
                   }
 
                   // Send conversation ID in the final chunk
@@ -224,8 +171,7 @@ export async function POST(request: NextRequest) {
                   )
 
                   const totalRequestTime = Date.now() - requestStartTime
-                  console.log(`[${requestId}] ✅ Request completed successfully in ${totalRequestTime}ms`)
-
+                
                   controller.close()
                   return
                 }
@@ -241,16 +187,12 @@ export async function POST(request: NextRequest) {
                     controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content })}\n\n`))
 
                     // Log every 10th chunk to avoid spam
-                    if (chunkCount % 10 === 0) {
-                      console.log(
-                        `[${requestId}] 📡 Processed ${chunkCount} chunks, ${totalCharsReceived} chars received`,
-                      )
-                    }
+
                   }
                 } catch (e) {
                   // 只记录非空数据的解析错误
                   if (data && data !== "[DONE]" && data.trim() !== "") {
-                    console.warn(`[${requestId}] ⚠️ Failed to parse JSON: "${data.slice(0, 100)}..."`)
+                   
                   }
                 }
               }
@@ -258,7 +200,7 @@ export async function POST(request: NextRequest) {
           }
         } catch (error) {
           const streamErrorTime = Date.now() - streamStartTime
-          console.error(`[${requestId}] ❌ Stream error after ${streamErrorTime}ms:`, error)
+        
           
           // 发送错误信息到客户端
           controller.enqueue(
@@ -284,10 +226,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     const totalErrorTime = Date.now() - requestStartTime
-    console.error(`[${requestId}] ❌ Chat API error after ${totalErrorTime}ms:`, {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    })
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
