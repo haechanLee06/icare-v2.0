@@ -210,6 +210,29 @@
   z-index: 1;
 }
 
+/* 确保底部导航栏在最上层且可以正常点击 */
+nav.fixed {
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+  position: relative !important;
+}
+
+/* 确保背景图片不会干扰导航栏 */
+.background-image {
+  pointer-events: none;
+}
+
+.background-image > * {
+  pointer-events: auto;
+}
+
+/* 强制底部导航栏可点击 */
+nav.fixed * {
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 10000 !important;
+}
+
 /* 深色模式下的背景图片 */
 .dark .background-image::before {
   background: rgba(20, 20, 20, 0.6);

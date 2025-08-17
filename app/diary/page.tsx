@@ -257,7 +257,7 @@ export default function DiaryPage() {
       </BackgroundWrapper>
 
       {/* 底部导航 */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
+      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-[9999]">
         <div className="flex items-center justify-around py-2">
           {[
             { icon: Home, label: "首页", active: false, href: "/" },

@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Save, Loader2, Check } from "lucide-react"
+import { ArrowLeft, Save, Loader2, Check, Home, BookOpen, Plus, BarChart3, User } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/components/auth-guard"
@@ -298,6 +298,35 @@ export default function NewDiaryPage() {
           </div>
         </div>
       </BackgroundWrapper>
+
+      {/* 底部导航 */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-[9999]">
+        <div className="flex items-center justify-around py-2">
+          {[
+            { icon: Home, label: "首页", active: false, href: "/" },
+            { icon: BookOpen, label: "日记", active: false, href: "/diary" },
+            { icon: Plus, label: "", active: false, isCenter: true, href: "/chat" },
+            { icon: BarChart3, label: "分析", active: false, href: "/insights" },
+            { icon: User, label: "我的", active: false, href: "/profile" },
+          ].map((item, index) => (
+            <Link key={index} href={item.href || "/"}>
+              <Button
+                variant="ghost"
+                className={`flex flex-col items-center gap-1 h-auto py-2 px-3 gentle-transition ${
+                  item.isCenter
+                    ? "bg-primary text-primary-foreground rounded-full w-12 h-12 p-0"
+                    : item.active
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                }`}
+              >
+                <item.icon className={`w-5 h-5 ${item.isCenter ? "w-6 h-6" : ""}`} />
+                {!item.isCenter && <span className="text-xs">{item.label}</span>}
+              </Button>
+            </Link>
+          ))}
+        </div>
+      </nav>
     </AuthGuard>
   )
 }
