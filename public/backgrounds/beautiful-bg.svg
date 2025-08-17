@@ -1,0 +1,96 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 渐变定义 -->
+    <linearGradient id="skyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#E8F4FD;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#F0F8FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFF3E0;stop-opacity:1" />
+    </linearGradient>
+    
+    <radialGradient id="cloudGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#F0F8FF;stop-opacity:0.3" />
+    </radialGradient>
+    
+    <radialGradient id="flowerGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#FFB6C1;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#FFC0CB;stop-opacity:0.4" />
+    </radialGradient>
+    
+    <radialGradient id="leafGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#98FB98;stop-opacity:0.7" />
+      <stop offset="100%" style="stop-color:#90EE90;stop-opacity:0.3" />
+    </radialGradient>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="1920" height="1080" fill="url(#skyGradient)"/>
+  
+  <!-- 装饰性云朵 -->
+  <g opacity="0.6">
+    <ellipse cx="300" cy="150" rx="80" ry="40" fill="url(#cloudGradient)"/>
+    <ellipse cx="350" cy="140" rx="60" ry="30" fill="url(#cloudGradient)"/>
+    <ellipse cx="400" cy="150" rx="70" ry="35" fill="url(#cloudGradient)"/>
+    
+    <ellipse cx="1200" cy="200" rx="90" ry="45" fill="url(#cloudGradient)"/>
+    <ellipse cx="1250" cy="190" rx="70" ry="35" fill="url(#cloudGradient)"/>
+    <ellipse cx="1300" cy="200" rx="80" ry="40" fill="url(#cloudGradient)"/>
+    
+    <ellipse cx="1600" cy="120" rx="70" ry="35" fill="url(#cloudGradient)"/>
+    <ellipse cx="1650" cy="110" rx="50" ry="25" fill="url(#cloudGradient)"/>
+    <ellipse cx="1700" cy="120" rx="60" ry="30" fill="url(#cloudGradient)"/>
+  </g>
+  
+  <!-- 装饰性花朵 -->
+  <g opacity="0.4">
+    <!-- 花朵1 -->
+    <circle cx="200" cy="800" r="15" fill="url(#flowerGradient)"/>
+    <circle cx="200" cy="800" r="25" fill="none" stroke="#FFB6C1" stroke-width="2" opacity="0.6"/>
+    
+    <!-- 花朵2 -->
+    <circle cx="400" cy="900" r="12" fill="url(#flowerGradient)"/>
+    <circle cx="400" cy="900" r="20" fill="none" stroke="#FFB6C1" stroke-width="2" opacity="0.6"/>
+    
+    <!-- 花朵3 -->
+    <circle cx="600" cy="850" r="18" fill="url(#flowerGradient)"/>
+    <circle cx="600" cy="850" r="28" fill="none" stroke="#FFB6C1" stroke-width="2" opacity="0.6"/>
+    
+    <!-- 花朵4 -->
+    <circle cx="1500" cy="800" r="14" fill="url(#flowerGradient)"/>
+    <circle cx="1500" cy="800" r="22" fill="none" stroke="#FFB6C1" stroke-width="2" opacity="0.6"/>
+    
+    <!-- 花朵5 -->
+    <circle cx="1700" cy="900" r="16" fill="url(#flowerGradient)"/>
+    <circle cx="1700" cy="900" r="26" fill="none" stroke="#FFB6C1" stroke-width="2" opacity="0.6"/>
+  </g>
+  
+  <!-- 装饰性叶子 -->
+  <g opacity="0.3">
+    <ellipse cx="150" cy="950" rx="20" ry="8" fill="url(#leafGradient)"/>
+    <ellipse cx="500" cy="980" rx="15" ry="6" fill="url(#leafGradient)"/>
+    <ellipse cx="800" cy="960" rx="18" ry="7" fill="url(#leafGradient)"/>
+    <ellipse cx="1400" cy="950" rx="16" ry="6" fill="url(#leafGradient)"/>
+    <ellipse cx="1800" cy="980" rx="22" ry="9" fill="url(#leafGradient)"/>
+  </g>
+  
+  <!-- 装饰性圆点 -->
+  <g opacity="0.2">
+    <circle cx="100" cy="300" r="3" fill="#9F7AEA"/>
+    <circle cx="250" cy="400" r="2" fill="#9F7AEA"/>
+    <circle cx="450" cy="350" r="4" fill="#9F7AEA"/>
+    <circle cx="650" cy="450" r="3" fill="#9F7AEA"/>
+    <circle cx="850" cy="380" r="2" fill="#9F7AEA"/>
+    <circle cx="1050" cy="420" r="3" fill="#9F7AEA"/>
+    <circle cx="1250" cy="350" r="4" fill="#9F7AEA"/>
+    <circle cx="1450" cy="400" r="2" fill="#9F7AEA"/>
+    <circle cx="1650" cy="450" r="3" fill="#9F7AEA"/>
+    <circle cx="1850" cy="380" r="4" fill="#9F7AEA"/>
+  </g>
+  
+  <!-- 装饰性波浪线 -->
+  <g opacity="0.1" stroke="#9F7AEA" stroke-width="1" fill="none">
+    <path d="M 0,1000 Q 480,950 960,1000 T 1920,1000"/>
+    <path d="M 0,1020 Q 480,970 960,1020 T 1920,1020"/>
+    <path d="M 0,1040 Q 480,990 960,1040 T 1920,1040"/>
+  </g>
+</svg>
