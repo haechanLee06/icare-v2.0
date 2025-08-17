@@ -8,6 +8,18 @@ export interface EmotionData {
   event_keywords: string[]
 }
 
+export interface DailyEmotionData {
+  id: string
+  title: string
+  mood_score: number
+  emotion: string
+  emotion_keywords: string[]
+  event_keywords: string[]
+  created_at: string
+  time: string
+  hour: number
+}
+
 export interface EmotionStats {
   averageMood: number
   moodTrend: "up" | "down" | "stable"
@@ -190,5 +202,135 @@ export function getTrendText(trend: "up" | "down" | "stable"): string {
       return "情绪下降"
     default:
       return "情绪稳定"
+  }
+}
+
+/**
+ * 获取指定日期一天之内的情感变化数据
+ */
+export async function getDailyEmotionData(
+  userId: number,
+  targetDate: Date = new Date()
+): Promise<DailyEmotionData[]> {
+  try {
+    // 设置目标日期的开始和结束时间
+    const startOfDay = new Date(targetDate)
+    startOfDay.setHours(0, 0, 0, 0)
+    
+    const endOfDay = new Date(targetDate)
+    endOfDay.setHours(23, 59, 59, 999)
+
+    const { data, error } = await supabase
+      .from('diary_entries')
+      .select('id, title, mood_score, emotion, emotion_keywords, event_keywords, created_at')
+      .eq('user_id', userId)
+      .gte('created_at', startOfDay.toISOString())
+      .lte('created_at', endOfDay.toISOString())
+      .not('mood_score', 'is', null)
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error("Error loading daily emotion data:", error)
+      return []
+    }
+
+    return (data || []).map(item => ({
+      id: item.id,
+      title: item.title,
+      mood_score: item.mood_score,
+      emotion: item.emotion,
+      emotion_keywords: item.emotion_keywords || [],
+      event_keywords: item.event_keywords || [],
+      created_at: item.created_at,
+      time: new Date(item.created_at).toLocaleTimeString('zh-CN', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }),
+      hour: new Date(item.created_at).getHours()
+    }))
+  } catch (error) {
+    console.error("Error:", error)
+    return []
+  }
+}
+
+/**
+ * 获取一天之内的情感变化统计
+ */
+export async function getDailyEmotionStats(
+  userId: number,
+  targetDate: Date = new Date()
+): Promise<{
+  totalRecords: number
+  averageMood: number
+  moodRange: { min: number; max: number }
+  moodVariation: number
+  peakHour: number
+  lowHour: number
+  emotionDistribution: Record<string, number>
+}> {
+  try {
+    const dailyData = await getDailyEmotionData(userId, targetDate)
+    
+    if (dailyData.length === 0) {
+      return {
+        totalRecords: 0,
+        averageMood: 0,
+        moodRange: { min: 0, max: 0 },
+        moodVariation: 0,
+        peakHour: 0,
+        lowHour: 0,
+        emotionDistribution: {}
+      }
+    }
+
+    const scores = dailyData.map(item => item.mood_score)
+    const averageMood = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10
+    const minScore = Math.min(...scores)
+    const maxScore = Math.max(...scores)
+    const moodVariation = Math.round((maxScore - minScore) * 10) / 10
+
+    // 按小时分组计算平均分数
+    const hourlyScores = dailyData.reduce((acc, item) => {
+      if (!acc[item.hour]) acc[item.hour] = []
+      acc[item.hour].push(item.mood_score)
+      return acc
+    }, {} as Record<number, number[]>)
+
+    // 计算每小时平均分数
+    const hourlyAverages = Object.entries(hourlyScores).map(([hour, scores]) => ({
+      hour: parseInt(hour),
+      average: scores.reduce((a, b) => a + b, 0) / scores.length
+    }))
+
+    const peakHour = hourlyAverages.reduce((a, b) => a.average > b.average ? a : b).hour
+    const lowHour = hourlyAverages.reduce((a, b) => a.average < b.average ? a : b).hour
+
+    // 情绪分布
+    const emotionDistribution = dailyData.reduce((acc, item) => {
+      acc[item.emotion] = (acc[item.emotion] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+
+    return {
+      totalRecords: dailyData.length,
+      averageMood,
+      moodRange: { min: minScore, max: maxScore },
+      moodVariation,
+      peakHour,
+      lowHour,
+      emotionDistribution
+    }
+  } catch (error) {
+    console.error("Error getting daily emotion stats:", error)
+    return {
+      totalRecords: 0,
+      averageMood: 0,
+      moodRange: { min: 0, max: 0 },
+      moodVariation: 0,
+      peakHour: 0,
+      lowHour: 0,
+      emotionDistribution: {}
+    }
   }
 }

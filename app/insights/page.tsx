@@ -8,12 +8,16 @@ import { Calendar, TrendingUp, TrendingDown, Minus, BarChart3, Activity, Target,
 import Link from "next/link"
 import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/contexts/auth-context"
+import { BackgroundWrapper } from "@/components/background-wrapper"
 import { 
   getEmotionData, 
   getEmotionStats, 
+  getDailyEmotionData,
+  getDailyEmotionStats,
   getMoodColor, 
   getMoodEmoji, 
-  type EmotionData 
+  type EmotionData,
+  type DailyEmotionData
 } from "@/lib/emotion-analysis"
 
 interface TimeRange {
@@ -25,13 +29,15 @@ interface TimeRange {
 export default function InsightsPage() {
   const { user } = useAuth()
   const [emotionData, setEmotionData] = useState<EmotionData[]>([])
+  const [dailyEmotionData, setDailyEmotionData] = useState<DailyEmotionData[]>([])
+  const [dailyEmotionStats, setDailyEmotionStats] = useState<any>(null)
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>("7")
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [isLoading, setIsLoading] = useState(true)
   const [averageMood, setAverageMood] = useState(0)
   const [moodTrend, setMoodTrend] = useState<"up" | "down" | "stable">("stable")
 
   const timeRanges: TimeRange[] = [
-    { label: "1天", days: 1, value: "1" },
     { label: "7天", days: 7, value: "7" },
     { label: "14天", days: 14, value: "14" },
     { label: "30天", days: 30, value: "30" },
@@ -41,8 +47,9 @@ export default function InsightsPage() {
   useEffect(() => {
     if (user) {
       loadEmotionData()
+      loadDailyEmotionData()
     }
-  }, [user, selectedTimeRange])
+  }, [user, selectedTimeRange, selectedDate])
 
   const loadEmotionData = async () => {
     if (!user) return
@@ -69,6 +76,23 @@ export default function InsightsPage() {
     }
   }
 
+  const loadDailyEmotionData = async () => {
+    if (!user) return
+
+    try {
+      const targetDate = new Date(selectedDate)
+      const [dailyData, dailyStats] = await Promise.all([
+        getDailyEmotionData(user.id, targetDate),
+        getDailyEmotionStats(user.id, targetDate)
+      ])
+      
+      setDailyEmotionData(dailyData)
+      setDailyEmotionStats(dailyStats)
+    } catch (error) {
+      console.error("Error loading daily emotion data:", error)
+    }
+  }
+
   if (isLoading) {
     return (
       <AuthGuard>
@@ -84,7 +108,8 @@ export default function InsightsPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-background paper-texture">
+      <BackgroundWrapper>
+        <div className="min-h-screen">
         {/* 顶部导航 */}
         <header className="flex items-center justify-between p-4 pt-12">
           <div className="flex items-center gap-3">
@@ -99,6 +124,194 @@ export default function InsightsPage() {
 
         <main className="px-4 pb-24">
           {/* 时间范围选择器 */}
+
+          {/* 一天之内情感变化仪表盘 */}
+          <Card className="p-6 soft-shadow mb-6 bg-white/80 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-foreground">今日情感变化</h2>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+            </div>
+            
+            {dailyEmotionData.length === 0 ? (
+              <div className="text-center py-12">
+                <Activity className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">今日暂无情感记录</p>
+                <p className="text-sm text-muted-foreground">开始记录日记来查看情感变化</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* 今日情感统计卡片 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
+                    <p className="text-sm text-blue-600 font-medium">记录数量</p>
+                    <p className="text-2xl font-bold text-blue-700">{dailyEmotionStats?.totalRecords || 0}</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
+                    <p className="text-sm text-green-600 font-medium">平均分数</p>
+                    <p className="text-2xl font-bold text-green-700">{dailyEmotionStats?.averageMood || 0}/10</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
+                    <p className="text-sm text-purple-600 font-medium">情感波动</p>
+                    <p className="text-2xl font-bold text-purple-700">{dailyEmotionStats?.moodVariation || 0}</p>
+                  </div>
+                  <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200">
+                    <p className="text-sm text-orange-600 font-medium">峰值时段</p>
+                    <p className="text-2xl font-bold text-orange-700">{dailyEmotionStats?.peakHour || 0}:00</p>
+                  </div>
+                </div>
+
+                {/* 24小时情感变化图表 */}
+                <div className="bg-gradient-to-b from-gray-50 via-white to-blue-50 rounded-xl p-6 border border-gray-100">
+                  <h3 className="text-lg font-semibold text-foreground mb-4">24小时情感变化</h3>
+                  <div className="relative h-64">
+                    {/* Y轴标签 */}
+                    <div className="absolute left-0 top-0 h-full flex flex-col justify-between text-xs text-muted-foreground font-medium">
+                      <span className="text-green-600">10</span>
+                      <span className="text-blue-600">8</span>
+                      <span className="text-yellow-600">6</span>
+                      <span className="text-orange-600">4</span>
+                      <span className="text-red-600">2</span>
+                    </div>
+                    
+                    {/* 网格线 */}
+                    <div className="absolute left-8 top-0 h-full w-full">
+                      {[0, 25, 50, 75, 100].map((percent) => (
+                        <div
+                          key={percent}
+                          className="absolute w-full border-t border-gray-200"
+                          style={{ top: `${percent}%` }}
+                        />
+                      ))}
+                    </div>
+                    
+                    {/* 24小时时间轴 */}
+                    <div className="absolute left-8 top-0 h-full w-full">
+                      {Array.from({ length: 25 }, (_, i) => (
+                        <div
+                          key={i}
+                          className="absolute w-px h-full border-l border-gray-200"
+                          style={{ left: `${(i / 24) * 100}%` }}
+                        />
+                      ))}
+                    </div>
+                    
+                    {/* 情感变化曲线 */}
+                    <div className="relative h-full ml-12">
+                      <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                        {/* 渐变背景区域 */}
+                        <defs>
+                          <linearGradient id="dailyAreaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.3" />
+                            <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0.1" />
+                          </linearGradient>
+                          <linearGradient id="dailyLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#3B82F6" />
+                            <stop offset="100%" stopColor="#8B5CF6" />
+                          </linearGradient>
+                        </defs>
+                        
+                        {/* 填充区域 */}
+                        <path
+                          fill="url(#dailyAreaGradient)"
+                          d={`M 0,${100 - (dailyEmotionData[0]?.mood_score || 5) / 10 * 100} ${dailyEmotionData.map((item, index) => {
+                            const x = (item.hour / 24) * 100
+                            const y = 100 - (item.mood_score / 10) * 100
+                            return `L ${x},${y}`
+                          }).join(" ")} L 100,${100 - (dailyEmotionData[dailyEmotionData.length - 1]?.mood_score || 5) / 10 * 100} L 100,100 L 0,100 Z`}
+                        />
+                        
+                        {/* 折线 */}
+                        <polyline
+                          fill="none"
+                          stroke="url(#dailyLineGradient)"
+                          strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          points={dailyEmotionData.map((item) => {
+                            const x = (item.hour / 24) * 100
+                            const y = 100 - (item.mood_score / 10) * 100
+                            return `${x},${y}`
+                          }).join(" ")}
+                        />
+                      </svg>
+                      
+                      {/* 数据点 */}
+                      {dailyEmotionData.map((item) => {
+                        const x = (item.hour / 24) * 100
+                        const y = 100 - (item.mood_score / 10) * 100
+                        return (
+                          <div
+                            key={item.id}
+                            className="absolute w-4 h-4 bg-white rounded-full border-3 border-primary shadow-lg cursor-pointer hover:scale-125 transition-transform duration-200"
+                            style={{
+                              left: `${x}%`,
+                              top: `${y}%`,
+                              transform: 'translate(-50%, -50%)'
+                            }}
+                            title={`${item.time}: ${item.mood_score}/10 - ${item.title}`}
+                          />
+                        )
+                      })}
+                    </div>
+                    
+                    {/* X轴时间标签 */}
+                    <div className="flex justify-between mt-6 ml-12 text-xs text-muted-foreground font-medium">
+                      {Array.from({ length: 7 }, (_, i) => (
+                        <span key={i} className="text-center">
+                          {i * 4}:00
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 今日情感记录详情 */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-foreground">今日情感记录</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {dailyEmotionData.map((item) => (
+                      <div key={item.id} className="p-4 bg-gradient-to-br from-gray-50 to-white rounded-xl border border-gray-100 hover:shadow-md transition-shadow duration-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-sm font-medium text-foreground">
+                            {item.time}
+                          </span>
+                          <span className={`text-lg font-bold ${getMoodColor(item.mood_score)}`}>
+                            {getMoodEmoji(item.mood_score)} {item.mood_score}/10
+                          </span>
+                        </div>
+                        
+                        <p className="text-sm text-foreground mb-3 line-clamp-2 font-medium">{item.title}</p>
+                        
+                        {/* 情绪关键词 */}
+                        <div className="flex flex-wrap gap-1 mb-2">
+                          {item.emotion_keywords.slice(0, 3).map((keyword, idx) => (
+                            <Badge key={idx} variant="secondary" className="text-xs bg-blue-100 text-blue-700 border-blue-200">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                        
+                        {/* 事件关键词 */}
+                        <div className="flex flex-wrap gap-1">
+                          {item.event_keywords.slice(0, 2).map((keyword, idx) => (
+                            <Badge key={idx} variant="outline" className="text-xs border-purple-200 text-purple-700">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
+
           <Card className="p-4 mb-6 soft-shadow bg-white/80 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">选择时间范围</h2>
@@ -117,7 +330,6 @@ export default function InsightsPage() {
               </div>
             </div>
           </Card>
-
           {/* 情绪概览卡片 */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <Card className="p-4 soft-shadow bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
@@ -316,7 +528,7 @@ export default function InsightsPage() {
         </main>
 
         {/* 底部导航 */}
-        <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg">
+        <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg z-[9999]">
           <div className="flex items-center justify-around py-2">
             {[
               { icon: Home, label: "首页", active: false, href: "/" },
@@ -343,7 +555,8 @@ export default function InsightsPage() {
             ))}
           </div>
         </nav>
-      </div>
+        </div>
+      </BackgroundWrapper>
     </AuthGuard>
   )
 }
