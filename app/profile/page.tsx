@@ -180,11 +180,7 @@ export default function ProfilePage() {
                     >
                       <Avatar className="w-12 h-12 mx-auto mb-2">
                         <AvatarImage src={avatar.url} />
-                        <AvatarFallback className="text-xs">
-                          {avatar.name.charAt(0)}
-                        </AvatarFallback>
                       </Avatar>
-                      <p className="text-xs text-center text-foreground">{avatar.name}</p>
                       {selectedAvatarId === avatar.id && (
                         <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
                           <Check className="w-2.5 h-2.5 text-primary-foreground" />
@@ -193,9 +189,6 @@ export default function ProfilePage() {
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 text-center">
-                  {getCurrentAvatar().description}
-                </p>
               </div>
             )}
           </Card>

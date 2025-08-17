@@ -405,3 +405,38 @@ ${messages
   // Fallback suggestions
   return ["平静", "期待", "感动"]
 }
+
+/**
+ * 使用DeepSeek AI进行情绪分析
+ * @param prompt 分析提示词
+ * @returns AI分析结果
+ */
+export async function analyzeWithDeepSeek(prompt: string): Promise<string | null> {
+  try {
+    const messages: ChatMessage[] = [
+      {
+        role: "user",
+        content: prompt
+      }
+    ]
+
+    const response = await callDeepSeekAPISimple(messages)
+    
+    if (!response.ok) {
+      throw new Error(`DeepSeek API请求失败: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const content = data.choices?.[0]?.message?.content
+
+    if (!content) {
+      throw new Error('AI返回内容为空')
+    }
+
+    return content.trim()
+
+  } catch (error) {
+    console.error('DeepSeek情绪分析失败:', error)
+    return null
+  }
+}

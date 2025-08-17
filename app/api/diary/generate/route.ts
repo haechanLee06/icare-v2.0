@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { generateDiary, analyzeDiaryMood } from "@/lib/diary-generator"
 import type { ChatMessage } from "@/lib/deepseek"
+import { analyzeWithDeepSeek } from "@/lib/deepseek"
 
 export async function POST(request: NextRequest) {
   try {
@@ -96,6 +97,111 @@ export async function POST(request: NextRequest) {
     if (saveError) {
       console.error("Error saving diary:", saveError)
       return NextResponse.json({ error: "Failed to save diary" }, { status: 500 })
+    }
+
+    // 保存成功后，自动进行情绪分析
+    try {
+      console.log("开始AI情绪分析...")
+      
+      // 构建情绪分析提示词
+      const emotionAnalysisPrompt = `
+# 角色
+你是一个专业的情绪分析师和文本信息提取专家。
+
+# 任务
+你的任务是基于用户提供的文本记录，进行深入的情绪分析，并以严格的 JSON 格式输出三个关键信息：心情指数、心情关键词和事件关键词。
+
+# 指令与规则
+1.  **心情指数 (mood_score)**:
+    * 对文本中表达的整体情绪强度进行评分，分值为 1-10 的整数。
+    * 评分标准：1 代表极度负面情绪（如：绝望、崩溃），5 代表中性或复杂情绪（如：平静、迷茫、悲喜交加），10 代表极度正面情绪（如：狂喜、极度兴奋）。
+    * 评分必须是整数。
+
+2.  **心情关键词 (emotion_keywords)**:
+    * 从文本中提取能直接或间接描述情绪状态的词语或短语。
+    * 这些词应该聚焦于"感受"，例如"开心"、"崩溃"、"燃起来"、"心如刀割"、"松了一口气"等。
+    * 结果必须是一个 JSON 字符串数组。
+
+3.  **事件关键词 (event_keywords)**:
+    * 从文本中提取引发上述情绪的客观"事件"、"原因"或"对象"。
+    * 这些词应该聚焦于"事实"，即"发生了什么事"，例如"收到录取通知书"、"项目搞砸了"、"和朋友吵架"、"考试通过"等。
+    * 结果必须是一个 JSON 字符串数组。
+
+4.  **输出格式**:
+    * 你必须且只能输出一个严格的、不包含任何额外解释说明的 JSON 对象。
+    * JSON 对象的键必须使用英文：\`mood_score\`, \`emotion_keywords\`, \`event_keywords\`。
+
+# 示例
+
+## 示例 1
+- **输入**: 啊啊啊我成功了！收到录取通知的那一刻，我直接跳了起来！感觉这么多年的努力在这一刻全部都值了！简直是人生巅峰！现在开心到语无伦次，感觉整个人都"燃"起来了，浑身都是用不完的劲儿！这种感觉真的太爽了！
+- **输出**:以JSON格式
+{
+  "mood_score": 10,
+  "emotion_keywords": [
+    "成功了",
+    "值了",
+    "人生巅峰",
+    "开心到语无伦次",
+    "燃起来",
+    "太爽了"
+  ],
+  "event_keywords": [
+    "收到录取通知",
+    "多年的努力"
+  ]
+}
+
+请分析以下日记内容：
+
+日记标题：${title}
+日记内容：${diaryContent}
+用户情绪标签：${emotion}
+
+请返回JSON格式的分析结果。`
+
+      // 直接调用DeepSeek API进行分析
+      const aiResponse = await analyzeWithDeepSeek(emotionAnalysisPrompt)
+      
+      if (aiResponse) {
+        try {
+          // 尝试解析AI返回的JSON
+          const analysisResult = JSON.parse(aiResponse)
+          
+          // 验证数据格式
+          if (analysisResult.mood_score && analysisResult.emotion_keywords && analysisResult.event_keywords) {
+            console.log("AI情绪分析完成:", analysisResult)
+            
+            // 更新数据库中的情绪分析结果
+            const { error: updateError } = await supabase
+              .from('diary_entries')
+              .update({
+                mood_score: analysisResult.mood_score,
+                emotion_keywords: analysisResult.emotion_keywords,
+                event_keywords: analysisResult.event_keywords,
+                ai_analysis_updated_at: new Date().toISOString()
+              })
+              .eq('id', diaryEntry.id)
+              .eq('user_id', user.id)
+            
+            if (updateError) {
+              console.error("更新情绪分析结果失败:", updateError)
+            } else {
+              console.log("情绪分析结果已保存到数据库")
+            }
+          } else {
+            console.warn("AI返回的数据格式不正确:", analysisResult)
+          }
+        } catch (parseError) {
+          console.error("解析AI返回结果失败:", parseError)
+          console.log("AI原始返回:", aiResponse)
+        }
+      } else {
+        console.warn("AI情绪分析失败")
+      }
+    } catch (analysisError) {
+      console.error("情绪分析过程中出错:", analysisError)
+      // 不影响日记保存，继续执行
     }
 
     return NextResponse.json({

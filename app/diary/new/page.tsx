@@ -13,6 +13,7 @@ import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase/client"
 import { getCurrentDateInfo } from "@/lib/utils"
+import { analyzeEmotionWithAI } from "@/lib/emotion-ai"
 
 const emotionOptions = [
   "平静", "快乐", "兴奋", "满足", "感激", "希望", "好奇", "专注",
@@ -82,6 +83,44 @@ export default function NewDiaryPage() {
       }
 
       console.log("Diary entry created:", diaryEntry)
+      
+      // 保存成功后，自动进行情绪分析
+      try {
+        console.log("开始AI情绪分析...")
+        const analysisResult = await analyzeEmotionWithAI(
+          title.trim(),
+          content.trim(),
+          emotion
+        )
+        
+        if (analysisResult) {
+          console.log("AI情绪分析完成:", analysisResult)
+          
+          // 更新数据库中的情绪分析结果
+          const { error: updateError } = await supabase
+            .from('diary_entries')
+            .update({
+              mood_score: analysisResult.mood_score,
+              emotion_keywords: analysisResult.emotion_keywords,
+              event_keywords: analysisResult.event_keywords,
+              ai_analysis_updated_at: new Date().toISOString()
+            })
+            .eq('id', diaryEntry.id)
+            .eq('user_id', user.id)
+          
+          if (updateError) {
+            console.error("更新情绪分析结果失败:", updateError)
+          } else {
+            console.log("情绪分析结果已保存到数据库")
+          }
+        } else {
+          console.warn("AI情绪分析失败")
+        }
+      } catch (analysisError) {
+        console.error("情绪分析过程中出错:", analysisError)
+        // 不影响日记保存，继续执行
+      }
+      
       setShowSuccess(true)
       
       // 2秒后跳转到日记详情页

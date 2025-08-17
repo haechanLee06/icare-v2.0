@@ -152,7 +152,7 @@ export default function DiaryPage() {
           ) : (
             <>
               <p className="text-center text-sm text-muted-foreground mb-6">
-                共{diaryEntries.length}篇日记
+                共{diaryEntries.length}条记录
               </p>
 
           {/* 今日特别日记 */}
@@ -243,14 +243,17 @@ export default function DiaryPage() {
           )}
 
           {/* 查看全部日记按钮 */}
+          {/*
           <div className="mt-6 text-center">
             <Button variant="outline" className="gentle-transition hover:bg-primary/5 bg-transparent">
               查看全部日记
             </Button>
           </div>
+                  */}
             </>
           )}
         </div>
+
 
         {/* 底部导航 */}
         <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border">
