@@ -282,6 +282,14 @@ export default function ChatPage() {
               <>📖 生成今日心语日记</>
             )}
           </Button>
+          
+          {messages.length > 0 && (
+            <div className="mt-3 text-center">
+              <p className="text-xs text-muted-foreground">
+                生成日记后，你将在AI情绪洞察中看到温暖的心理疗愈回复 💝
+              </p>
+            </div>
+          )}
         </div>
 
         {/* 输入区域 */}

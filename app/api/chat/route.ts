@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { callDeepSeekAPI, analyzeEmotion } from "@/lib/deepseek"
-import { createServerClient } from "@supabase/ssr"
+import { generateAIInsightFromChat } from "@/lib/ai-insight-generator"
+import { createServerClient } from "@supabase/supabase-js"
 
 export async function POST(request: NextRequest) {
   const requestStartTime = Date.now()
@@ -158,6 +159,32 @@ export async function POST(request: NextRequest) {
                     ])
 
                     const assistantSaveEndTime = Date.now()
+
+                    // Generate AI insight after conversation is complete
+                    try {
+                      const allMessages = await supabase
+                        .from("messages")
+                        .select("role, content")
+                        .eq("conversation_id", currentConversationId)
+                        .order("created_at", { ascending: true })
+
+                      if (allMessages.data && allMessages.data.length > 0) {
+                        const chatMessages = allMessages.data.map((msg) => ({
+                          role: msg.role as "user" | "assistant",
+                          content: msg.content,
+                        }))
+
+                        const aiInsight = await generateAIInsightFromChat(chatMessages)
+                        
+                        // Update the conversation with AI insight
+                        await supabase
+                          .from("conversations")
+                          .update({ ai_insight: aiInsight })
+                          .eq("id", currentConversationId)
+                      }
+                    } catch (insightError) {
+                      console.error("Error generating AI insight:", insightError)
+                    }
                   }
 
                   // Send conversation ID in the final chunk

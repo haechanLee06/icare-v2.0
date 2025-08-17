@@ -179,13 +179,18 @@ export default function DiaryDetailPage({ params }: { params: Promise<{ id: stri
 
         {/* AI情绪洞察 */}
         {diaryEntry.ai_insight && (
-          <Card className="p-4 bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10">
+          <Card className="p-4 bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/10 soft-shadow">
             <div className="flex items-start gap-3">
               <Avatar className="w-8 h-8 flex-shrink-0">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs">🦊</AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs">💝</AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <h4 className="font-medium text-foreground mb-2">AI情绪洞察</h4>
+                <div className="flex items-center gap-2 mb-2">
+                  <h4 className="font-medium text-foreground">AI心理疗愈师</h4>
+                  <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                    温暖陪伴
+                  </Badge>
+                </div>
                 <p className="text-sm text-muted-foreground leading-relaxed mb-3">{diaryEntry.ai_insight}</p>
 
                 {diaryEntry.mood_tags && diaryEntry.mood_tags.length > 0 && (
@@ -198,7 +203,14 @@ export default function DiaryDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                 )}
 
-                <p className="text-xs text-muted-foreground">{formatDate(createdDate, 'short')}生成</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">{formatDate(createdDate, 'short')}生成</p>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-primary">🤗</span>
+                    <span className="text-xs text-primary">❤️</span>
+                    <span className="text-xs text-primary">✨</span>
+                  </div>
+                </div>
               </div>
             </div>
           </Card>

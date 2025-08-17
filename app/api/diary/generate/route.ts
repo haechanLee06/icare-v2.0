@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { generateDiary, analyzeDiaryMood } from "@/lib/diary-generator"
+import { generateAIInsightFromChat } from "@/lib/ai-insight-generator"
 import type { ChatMessage } from "@/lib/deepseek"
 
 export async function POST(request: NextRequest) {
@@ -76,6 +77,15 @@ export async function POST(request: NextRequest) {
       day: "numeric",
     })}心语`
 
+    // Generate AI insight based on chat messages
+    let aiInsight: string
+    try {
+      aiInsight = await generateAIInsightFromChat(chatMessages)
+    } catch (insightError) {
+      console.error("Error generating AI insight:", insightError)
+      aiInsight = `基于我们的对话，我为你生成了这篇日记。你的文字中透露出${emotion}的情绪，这种感受值得被记录和珍惜。`
+    }
+
     // Save diary entry to database
     const { data: diaryEntry, error: saveError } = await supabase
       .from("diary_entries")
@@ -85,7 +95,7 @@ export async function POST(request: NextRequest) {
         title,
         content: diaryContent,
         emotion,
-        ai_insight: `基于我们的对话，我为你生成了这篇日记。你的文字中透露出${emotion}的情绪，这种感受值得被记录和珍惜。`,
+        ai_insight: aiInsight,
         mood_tags: [emotion, "生活感悟", "内心成长"],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

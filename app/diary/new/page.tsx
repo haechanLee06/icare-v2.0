@@ -57,37 +57,36 @@ export default function NewDiaryPage() {
     setIsSubmitting(true)
 
     try {
-      // 生成AI洞察（基于用户输入的内容）
-      const aiInsight = `你记录了${emotion}的心情。${content.length > 50 ? '这是一篇详细的记录，' : ''}保持记录的习惯，让每一次情绪波动都成为成长的轨迹。`
-
-      const { data: diaryEntry, error } = await supabase
-        .from('diary_entries')
-        .insert({
-          user_id: user.id,
+      // 调用API生成AI智能回复
+      const response = await fetch("/api/diary/direct-generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           title: title.trim(),
           content: content.trim(),
           emotion: emotion,
-          ai_insight: aiInsight,
-          mood_tags: selectedMoodTags,
-          weather: weather || null,
-          location: location || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single()
+        }),
+      })
 
-      if (error) {
-        throw error
+      if (!response.ok) {
+        throw new Error("Failed to generate AI insight")
       }
 
-      console.log("Diary entry created:", diaryEntry)
-      setShowSuccess(true)
+      const result = await response.json()
       
-      // 2秒后跳转到日记详情页
-      setTimeout(() => {
-        router.push(`/diary/${diaryEntry.id}`)
-      }, 2000)
+      if (result.success) {
+        console.log("Diary entry created with AI insight:", result.diary)
+        setShowSuccess(true)
+        
+        // 2秒后跳转到日记详情页
+        setTimeout(() => {
+          router.push(`/diary/${result.diary.id}`)
+        }, 2000)
+      } else {
+        throw new Error(result.error || "Unknown error")
+      }
 
     } catch (error) {
       console.error("Error creating diary entry:", error)
