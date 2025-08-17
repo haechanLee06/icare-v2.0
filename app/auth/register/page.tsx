@@ -116,7 +116,7 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-12 bg-warm-purple hover:bg-warm-purple-dark text-white font-medium rounded-xl soft-shadow gentle-transition hover:scale-[1.02]"
+                className="w-full h-12 bg-warm-purple hover:bg-warm-purple-dark text-black font-medium rounded-xl soft-shadow gentle-transition hover:scale-[1.02]"
               >
                 {loading ? (
                   <>

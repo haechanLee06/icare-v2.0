@@ -317,10 +317,6 @@ export default function ChatPage() {
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </Button>
             </div>
-
-            <Button variant="ghost" size="icon" className="text-muted-foreground gentle-transition">
-              <Mic className="w-5 h-5" />
-            </Button>
           </div>
         </div>
       </div>

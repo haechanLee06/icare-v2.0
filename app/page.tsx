@@ -5,17 +5,20 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Home, BookOpen, Plus, BarChart3, User, ChevronLeft, ChevronRight, LogOut } from "lucide-react"
+import { Home, BookOpen, Plus, BarChart3, User, ChevronLeft, ChevronRight, LogOut, Edit3 } from "lucide-react"
 import Link from "next/link"
 import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase/client"
+import { formatDate, getEmotionColor, getEmotionEmoji, getCurrentDateInfo, getGreeting } from "@/lib/utils"
+import { getAvatarById } from "@/lib/avatar-library"
 
 export default function HomePage() {
   const { user, logout } = useAuth()
   const [currentDate, setCurrentDate] = useState(new Date()) // 当前日期
   const [userTasks, setUserTasks] = useState<any[]>([])
   const [userDiaries, setUserDiaries] = useState<any[]>([])
+  const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -34,6 +37,20 @@ export default function HomePage() {
     console.log("Loading user data for user:", user.id)
     
     try {
+      // 加载用户资料
+      const { data: profile, error: profileError } = await supabase
+        .from("users")
+        .select("username, birthday, writing_style, diary_length, avatar_id")
+        .eq("id", user.id)
+        .single()
+
+      if (profileError) {
+        console.error("Error loading user profile:", profileError)
+      } else {
+        setUserProfile(profile)
+        console.log("Loaded user profile:", profile)
+      }
+
       // Load user tasks
       const { data: tasks, error: tasksError } = await supabase
         .from("tasks")
@@ -75,14 +92,6 @@ export default function HomePage() {
     }
   }
 
-  const emotions = [
-    { name: "平静", color: "bg-secondary", count: 1 },
-    { name: "快乐", color: "bg-accent", count: 2 },
-    { name: "优雅", color: "bg-primary", count: 3 },
-    { name: "光辉", color: "bg-yellow-200", count: 4 },
-    { name: "兴奋", color: "bg-orange-200", count: 5 },
-  ]
-
   const insights = userDiaries.slice(0, 2).map((diary: any) => ({
     content: diary.ai_insight || `你在${new Date(diary.created_at).toLocaleDateString()}记录了美好的心情`,
     date: new Date(diary.created_at).toLocaleDateString("zh-CN", { month: "long", day: "numeric" }),
@@ -94,30 +103,6 @@ export default function HomePage() {
 
   const getFirstDayOfMonth = (date: Date) => {
     return new Date(date.getFullYear(), date.getMonth(), 1).getDay()
-  }
-
-  // 获取指定日期的情绪颜色
-  const getEmotionColorForDay = (day: number) => {
-    const diaryForDay = userDiaries.find((diary: any) => {
-      const diaryDate = new Date(diary.created_at)
-      return diaryDate.getDate() === day
-    })
-    
-    if (!diaryForDay) return ""
-    
-    // 根据日记的情绪或内容选择颜色
-    const emotion = diaryForDay.emotion || diaryForDay.content || ""
-    if (emotion.includes("快乐") || emotion.includes("开心") || emotion.includes("兴奋")) {
-      return emotions[1].color // 快乐 - 黄色
-    } else if (emotion.includes("平静") || emotion.includes("安静") || emotion.includes("放松")) {
-      return emotions[0].color // 平静 - 灰色
-    } else if (emotion.includes("优雅") || emotion.includes("美好") || emotion.includes("温暖")) {
-      return emotions[2].color // 优雅 - 紫色
-    } else if (emotion.includes("光辉") || emotion.includes("明亮") || emotion.includes("希望")) {
-      return emotions[3].color // 光辉 - 黄色
-    } else {
-      return emotions[4].color // 默认 - 橙色
-    }
   }
 
   const renderCalendar = () => {
@@ -137,16 +122,16 @@ export default function HomePage() {
         const diaryDate = new Date(diary.created_at)
         return diaryDate.getDate() === day
       })
-      
-      // 获取情绪颜色
-      const emotionColor = hasEmotion ? getEmotionColorForDay(day) : ""
 
       days.push(
         <div
           key={day}
           className={`w-8 h-8 flex items-center justify-center text-sm rounded-full gentle-transition hover:scale-110 cursor-pointer ${
-            hasEmotion ? `${emotionColor} text-white font-medium` : "text-muted-foreground"
+            hasEmotion ? "text-white font-medium" : "text-muted-foreground"
           }`}
+          style={{
+            backgroundColor: hasEmotion ? "#9F7AEA" : "transparent"
+          }}
           onClick={() => {
             const diaryForDay = userDiaries.find((diary: any) => {
               const diaryDate = new Date(diary.created_at)
@@ -187,9 +172,9 @@ export default function HomePage() {
               <LogOut className="w-5 h-5" />
             </Button>
             <Avatar className="w-8 h-8">
-              <AvatarImage src="/placeholder.svg?height=32&width=32" />
+              <AvatarImage src={userProfile?.avatar_id ? getAvatarById(userProfile.avatar_id)?.url : "/placeholder.svg?height=32&width=32"} />
               <AvatarFallback className="bg-secondary text-secondary-foreground">
-                {user?.username?.charAt(0)?.toUpperCase() || "用"}
+                {(userProfile?.username || user?.username)?.charAt(0)?.toUpperCase() || "用户"}
               </AvatarFallback>
             </Avatar>
           </div>
@@ -199,7 +184,9 @@ export default function HomePage() {
         <main className="px-4 pb-20">
           {/* 问候语 */}
           <div className="mb-6">
-            <h2 className="text-2xl font-serif font-bold text-foreground mb-2">你好，{user?.username || "朋友"}</h2>
+            <h2 className="text-2xl font-serif font-bold text-foreground mb-2">
+              {getGreeting()}，{userProfile?.username || user?.username || "朋友"}
+            </h2>
             <p className="text-muted-foreground">今天想和我聊聊什么呢？</p>
 
             <div className="flex items-center gap-4 mt-4">
@@ -216,19 +203,30 @@ export default function HomePage() {
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">本月记录</span>
                 <Badge variant="outline" className="border-primary text-primary">
-                  {userDiaries.length}天
+                  {userDiaries.length}条
                 </Badge>
               </div>
             </div>
           </div>
 
-          {/* 开始新对话按钮 */}
-          <Link href="/chat">
-            <Button className="w-full mb-6 h-12 bg-[#9F7AEA] hover:bg-[#8B5CF6] text-white font-medium rounded-2xl soft-shadow gentle-transition hover:scale-[1.02]">
-              <Plus className="w-5 h-5 mr-2" />
-              开始新对话
-            </Button>
-          </Link>
+          {/* 操作按钮区域 */}
+          <div className="space-y-3 mb-6 grid grid-cols-2 gap-4">
+            {/* 开始新对话按钮 */}
+            <Link href="/chat">
+              <Button className="w-full h-12 bg-[#9F7AEA] hover:bg-[#8B5CF6] text-white font-medium rounded-2xl soft-shadow gentle-transition hover:scale-[1.02]">
+                <Plus className="w-5 h-5 mr-2" />
+                和我对话
+              </Button>
+            </Link>
+            
+            {/* 手动记录日记按钮 */}
+            <Link href="/diary/new">
+              <Button variant="outline" className="w-full h-12 border-primary text-primary hover:bg-primary/5 font-medium rounded-2xl soft-shadow gentle-transition hover:scale-[1.02]">
+                <Edit3 className="w-5 h-5 mr-2" />
+                手动记录
+              </Button>
+            </Link>
+          </div>
 
           {/* 情绪日历 */}
           <Card className="p-4 mb-6 soft-shadow gentle-transition hover:shadow-lg">
@@ -259,51 +257,22 @@ export default function HomePage() {
             {/* 日历网格 */}
             <div className="grid grid-cols-7 gap-1">{renderCalendar()}</div>
 
-            {/* 情绪图例 */}
-            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-border">
-              {emotions.map((emotion, index) => (
-                <div key={emotion.name} className="flex items-center gap-1">
-                  <div className={`w-3 h-3 rounded-full ${emotion.color}`}></div>
-                  <span className="text-xs text-muted-foreground">{emotion.name}</span>
-                </div>
-              ))}
+            {/* 图例说明 */}
+            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#9F7AEA" }}></div>
+              <span className="text-xs text-muted-foreground">有记录的日期</span>
             </div>
             
-            {/* 本月情绪统计 */}
+            {/* 本月记录统计 */}
             <div className="mt-3 pt-3 border-t border-border">
-              <div className="text-xs text-muted-foreground mb-2">本月记录: {userDiaries.length} 天</div>
+              <div className="text-xs text-muted-foreground mb-2">本月记录: {userDiaries.length} 条</div>
               <div className="text-xs text-muted-foreground">
                 最近记录: {userDiaries.length > 0 ? new Date(userDiaries[0]?.created_at).toLocaleDateString("zh-CN") : "暂无"}
               </div>
             </div>
           </Card>
 
-          {/* 近期洞察 */}
-          <Card className="p-4 soft-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-serif font-semibold text-foreground">近期洞察</h3>
-              <Link href="/insights">
-                <Button variant="ghost" className="text-primary text-sm p-0 h-auto">
-                  查看全部洞察
-                </Button>
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {insights.length > 0 ? (
-                insights.map((insight, index) => (
-                  <div key={index} className="p-3 bg-muted/50 rounded-xl gentle-transition hover:bg-muted/70">
-                    <p className="text-sm text-foreground leading-relaxed mb-2">"{insight.content}"</p>
-                    <p className="text-xs text-muted-foreground">{insight.date}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="p-3 bg-muted/50 rounded-xl text-center">
-                  <p className="text-sm text-muted-foreground">开始你的第一次对话，获得AI洞察吧！</p>
-                </div>
-              )}
-            </div>
-          </Card>
+         
         </main>
 
         {/* 底部导航 */}

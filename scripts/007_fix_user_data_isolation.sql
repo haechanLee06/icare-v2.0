@@ -49,3 +49,9 @@ END $$;
 
 -- 7. 显示清理结果
 SELECT 'Data isolation check completed' as status;
+
+
+
+
+
+
