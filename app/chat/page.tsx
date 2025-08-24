@@ -101,6 +101,18 @@ export default function ChatPage() {
       return
     }
 
+    // 获取当前用户信息
+    const userStr = localStorage.getItem("user")
+    if (!userStr) {
+      alert("用户未登录，请重新登录")
+      console.error("❌ User not logged in")
+      console.groupEnd()
+      return
+    }
+
+    const user = JSON.parse(userStr)
+    console.log("👤 Current user:", user.id)
+
     setIsGeneratingDiary(true)
     console.log("🔄 Diary generation started")
     const startTime = performance.now()
@@ -114,6 +126,7 @@ export default function ChatPage() {
         },
         body: JSON.stringify({
           conversationId: conversationId,
+          userId: user.id,  // 添加用户ID
         }),
       })
 

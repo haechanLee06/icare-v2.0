@@ -59,79 +59,47 @@ export default function NewDiaryPage() {
     setIsSubmitting(true)
 
     try {
-      // 生成AI洞察（基于用户输入的内容）
-      const aiInsight = `你记录了${emotion}的心情。${content.length > 50 ? '这是一篇详细的记录，' : ''}保持记录的习惯，让每一次情绪波动都成为成长的轨迹。`
-
-      const { data: diaryEntry, error } = await supabase
-        .from('diary_entries')
-        .insert({
-          user_id: user.id,
+      console.log("开始创建日记，调用AI接口...")
+      
+      // 调用新的API接口，确保两个AI调用都完成
+      const response = await fetch("/api/diary/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user.id,
           title: title.trim(),
           content: content.trim(),
           emotion: emotion,
-          ai_insight: aiInsight,
-          mood_tags: selectedMoodTags,
+          moodTags: selectedMoodTags,
           weather: weather || null,
           location: location || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single()
+        }),
+      })
 
-      if (error) {
-        throw error
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `API请求失败: ${response.status}`)
       }
 
-      console.log("Diary entry created:", diaryEntry)
-      
-      // 保存成功后，自动进行情绪分析
-      try {
-        console.log("开始AI情绪分析...")
-        const analysisResult = await analyzeEmotionWithAI(
-          title.trim(),
-          content.trim(),
-          emotion
-        )
+      const result = await response.json()
+
+      if (result.success) {
+        console.log("日记创建成功:", result.diary)
+        setShowSuccess(true)
         
-        if (analysisResult) {
-          console.log("AI情绪分析完成:", analysisResult)
-          
-          // 更新数据库中的情绪分析结果
-          const { error: updateError } = await supabase
-            .from('diary_entries')
-            .update({
-              mood_score: analysisResult.mood_score,
-              emotion_keywords: analysisResult.emotion_keywords,
-              event_keywords: analysisResult.event_keywords,
-              ai_analysis_updated_at: new Date().toISOString()
-            })
-            .eq('id', diaryEntry.id)
-            .eq('user_id', user.id)
-          
-          if (updateError) {
-            console.error("更新情绪分析结果失败:", updateError)
-          } else {
-            console.log("情绪分析结果已保存到数据库")
-          }
-        } else {
-          console.warn("AI情绪分析失败")
-        }
-      } catch (analysisError) {
-        console.error("情绪分析过程中出错:", analysisError)
-        // 不影响日记保存，继续执行
+        // 2秒后跳转到日记详情页
+        setTimeout(() => {
+          router.push(`/diary/${result.diary.id}`)
+        }, 2000)
+      } else {
+        throw new Error(result.error || "创建失败")
       }
-      
-      setShowSuccess(true)
-      
-      // 2秒后跳转到日记详情页
-      setTimeout(() => {
-        router.push(`/diary/${diaryEntry.id}`)
-      }, 2000)
 
     } catch (error) {
       console.error("Error creating diary entry:", error)
-      alert("保存失败，请稍后重试")
+      alert(`保存失败：${error instanceof Error ? error.message : '请稍后重试'}`)
     } finally {
       setIsSubmitting(false)
     }

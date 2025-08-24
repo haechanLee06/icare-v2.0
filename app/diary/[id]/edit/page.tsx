@@ -13,6 +13,7 @@ import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase/client"
 import { analyzeEmotionWithAI } from "@/lib/emotion-ai"
+import { generateAIInsight } from "@/lib/ai-insight-generator"
 
 interface DiaryImage {
   id: string
@@ -310,9 +311,18 @@ export default function EditDiaryPage({ params }: { params: Promise<{ id: string
         throw error
       }
 
-      // 保存成功后，自动进行情绪分析
+      // 保存成功后，需要重新生成AI洞察和情绪分析
       try {
-        console.log("开始AI情绪分析...")
+        console.log("开始重新生成AI洞察和情绪分析...")
+        
+        // 调用AI洞察生成
+        const aiInsight = await generateAIInsight({
+          title: title.trim(),
+          content: content.trim(),
+          emotion
+        })
+        
+        // 调用AI情绪分析
         const analysisResult = await analyzeEmotionWithAI(
           title.trim(),
           content.trim(),
@@ -322,10 +332,11 @@ export default function EditDiaryPage({ params }: { params: Promise<{ id: string
         if (analysisResult) {
           console.log("AI情绪分析完成:", analysisResult)
           
-          // 更新数据库中的情绪分析结果
+          // 更新数据库中的AI洞察和情绪分析结果
           const { error: updateError } = await supabase
             .from('diary_entries')
             .update({
+              ai_insight: aiInsight,
               mood_score: analysisResult.mood_score,
               emotion_keywords: analysisResult.emotion_keywords,
               event_keywords: analysisResult.event_keywords,
@@ -335,15 +346,15 @@ export default function EditDiaryPage({ params }: { params: Promise<{ id: string
             .eq('user_id', user.id)
           
           if (updateError) {
-            console.error("更新情绪分析结果失败:", updateError)
+            console.error("更新AI洞察和情绪分析结果失败:", updateError)
           } else {
-            console.log("情绪分析结果已保存到数据库")
+            console.log("AI洞察和情绪分析结果已保存到数据库")
           }
         } else {
           console.warn("AI情绪分析失败")
         }
       } catch (analysisError) {
-        console.error("情绪分析过程中出错:", analysisError)
+        console.error("重新生成AI洞察和情绪分析过程中出错:", analysisError)
         // 不影响日记保存，继续执行
       }
 

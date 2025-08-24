@@ -1,24 +1,23 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { generateDiary, analyzeDiaryMood } from "@/lib/diary-generator"
-import type { ChatMessage } from "@/lib/deepseek"
 import { analyzeWithDeepSeek } from "@/lib/deepseek"
 import { generateAIInsight } from "@/lib/ai-insight-generator"
 
 export async function POST(request: NextRequest) {
   try {
-    const { conversationId, userId } = await request.json()
-
-    if (!conversationId) {
-      return NextResponse.json({ error: "Conversation ID is required" }, { status: 400 })
-    }
+    const { userId, title, content, emotion, moodTags, weather, location } = await request.json()
 
     if (!userId) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 })
     }
 
+    if (!title || !content) {
+      return NextResponse.json({ error: "Title and content are required" }, { status: 400 })
+    }
+
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
+    // 验证用户
     const { data: user, error: userError } = await supabase
       .from("users")
       .select("id, username")
@@ -30,59 +29,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 })
     }
 
-    // Fetch conversation messages
-    const { data: messages, error: messagesError } = await supabase
-      .from("messages")
-      .select("role, content, created_at")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true })
-
-    if (messagesError) {
-      console.error("Error fetching messages:", messagesError)
-      return NextResponse.json({ error: "Failed to fetch messages" }, { status: 500 })
-    }
-
-    if (!messages || messages.length === 0) {
-      return NextResponse.json({ error: "No messages found" }, { status: 404 })
-    }
-
-    // Convert to ChatMessage format
-    const chatMessages: ChatMessage[] = messages.map((msg) => ({
-      role: msg.role as "user" | "assistant",
-      content: msg.content,
-    }))
-
-    let diaryContent: string
-    let emotion: string
-
-    try {
-      diaryContent = await generateDiary(chatMessages)
-      emotion = await analyzeDiaryMood(diaryContent)
-    } catch (diaryError) {
-      console.error("Error in diary generation:", diaryError)
-      diaryContent = `今天我与小愈进行了一次深入的对话。通过这次交流，我感受到了内心的变化和成长。
-
-这些对话让我更好地理解了自己的情绪，也让我学会了如何更好地表达内心的感受。每一次的交流都是一次心灵的成长。
-
-愿我能继续保持这份对内心世界的关注，在生活中找到更多的美好与平静。`
-      emotion = "平静"
-    }
-
-    // Generate title based on content
-    const title = `${new Date().toLocaleDateString("zh-CN", {
-      month: "long",
-      day: "numeric",
-    })}心语`
-
     // 第一步：生成AI情绪洞察
-    console.log("开始生成AI情绪洞察...")
+    console.log("开始为用户手动日记生成AI情绪洞察...")
     let aiInsight = ""
     try {
       aiInsight = await generateAIInsight({
         title,
-        content: diaryContent,
-        emotion,
-        conversationContext: "用户与AI的深度对话"
+        content,
+        emotion
       })
       console.log("✅ AI情绪洞察生成成功:", aiInsight)
     } catch (insightError) {
@@ -130,8 +84,8 @@ export async function POST(request: NextRequest) {
 请分析以下日记内容：
 
 日记标题：${title}
-日记内容：${diaryContent}
-用户情绪标签：${emotion}
+日记内容：${content}
+用户情绪标签：${emotion || '未指定'}
 
 请返回JSON格式的分析结果。`
 
@@ -176,15 +130,16 @@ export async function POST(request: NextRequest) {
       .from("diary_entries")
       .insert({
         user_id: user.id,
-        conversation_id: conversationId,
         title,
-        content: diaryContent,
-        emotion,
+        content,
+        emotion: emotion || "平静",
         ai_insight: aiInsight,
         mood_score: moodScore,
         emotion_keywords: emotionKeywords,
         event_keywords: eventKeywords,
-        mood_tags: [emotion, "生活感悟", "内心成长"],
+        mood_tags: moodTags || [emotion || "平静", "生活感悟", "内心成长"],
+        weather: weather || null,
+        location: location || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         ai_analysis_updated_at: new Date().toISOString(),
@@ -204,13 +159,14 @@ export async function POST(request: NextRequest) {
       diary: {
         id: diaryEntry.id,
         title,
-        content: diaryContent,
-        emotion, // 返回emotion而不是mood
+        content,
+        emotion: emotion || "平静",
+        ai_insight: aiInsight,
         created_at: diaryEntry.created_at,
       },
     })
   } catch (error) {
-    console.error("Error generating diary:", error)
+    console.error("Error creating diary:", error)
     return NextResponse.json(
       {
         error: "Internal server error",
