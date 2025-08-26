@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { analyzeWithDeepSeek } from "@/lib/deepseek"
 import { generateAIInsight } from "@/lib/ai-insight-generator"
+import { analyzeWithDeepSeek } from "@/lib/deepseek"
+import { cleanAIResponse } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
   try {
@@ -94,8 +95,11 @@ export async function POST(request: NextRequest) {
       
       if (aiResponse) {
         try {
+          // 清理AI返回的响应，移除可能的markdown格式标记
+          const cleanResponse = cleanAIResponse(aiResponse)
+          
           // 尝试解析AI返回的JSON
-          const analysisResult = JSON.parse(aiResponse)
+          const analysisResult = JSON.parse(cleanResponse)
           
           // 验证数据格式
           if (analysisResult.mood_score && analysisResult.emotion_keywords && analysisResult.event_keywords) {

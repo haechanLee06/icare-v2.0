@@ -4,6 +4,7 @@ import { generateDiary, analyzeDiaryMood } from "@/lib/diary-generator"
 import type { ChatMessage } from "@/lib/deepseek"
 import { analyzeWithDeepSeek } from "@/lib/deepseek"
 import { generateAIInsight } from "@/lib/ai-insight-generator"
+import { cleanAIResponse } from "@/lib/utils"
 
 export async function POST(request: NextRequest) {
   try {
@@ -126,6 +127,7 @@ export async function POST(request: NextRequest) {
 4.  **输出格式**:
     * 你必须且只能输出一个严格的、不包含任何额外解释说明的 JSON 对象。
     * JSON 对象的键必须使用英文：\`mood_score\`, \`emotion_keywords\`, \`event_keywords\`。
+    * 不要包含任何markdown格式标记，直接输出纯JSON。
 
 请分析以下日记内容：
 
@@ -140,8 +142,11 @@ export async function POST(request: NextRequest) {
       
       if (aiResponse) {
         try {
+          // 清理AI返回的响应，移除可能的markdown格式标记
+          const cleanResponse = cleanAIResponse(aiResponse)
+          
           // 尝试解析AI返回的JSON
-          const analysisResult = JSON.parse(aiResponse)
+          const analysisResult = JSON.parse(cleanResponse)
           
           // 验证数据格式
           if (analysisResult.mood_score && analysisResult.emotion_keywords && analysisResult.event_keywords) {

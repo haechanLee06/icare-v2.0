@@ -16,8 +16,8 @@ export async function generateAIInsight(options: InsightGenerationOptions): Prom
   try {
     console.log("开始生成AI情绪洞察")
     
-    // 使用通用的AI洞察提示词
-    const prompt = buildUniversalInsightPrompt(options)
+    // 使用优化的AI洞察提示词
+    const prompt = buildInsightPrompt(options)
     
     // 调用AI生成洞察
     const insightResponse = await analyzeWithDeepSeek(prompt)
@@ -37,84 +37,39 @@ export async function generateAIInsight(options: InsightGenerationOptions): Prom
 }
 
 /**
- * 构建通用的AI洞察提示词
+ * 构建AI洞察提示词
  */
-function buildUniversalInsightPrompt(options: InsightGenerationOptions): string {
-  return `
-# 角色
-你是一个专业的心理咨询师和情绪分析师，专门帮助用户理解自己的情绪状态和内心世界。
+function buildInsightPrompt(options: InsightGenerationOptions): string {
+  return `你是一个温暖的心理疗愈师，专门为用户提供情绪支持和洞察。
 
-# 任务
-基于用户提供的日记内容，生成一段温暖、专业且富有洞察力的情绪分析。这段分析应该：
-1. 理解并认可用户的情绪感受
-2. 提供积极的情绪洞察和成长建议
-3. 语言要温暖、亲切，像朋友一样
-4. 体现记录的价值和意义
+请基于以下日记内容，生成一段温暖、治愈的情绪洞察：
 
-# 要求
-- 分析要基于日记的具体内容，不要泛泛而谈
-- 语言要温暖、鼓励，避免说教
-- 长度控制在100-150字左右
-- 要体现对用户情绪的理解和关怀
+**日记标题：** ${options.title}
+**日记内容：** ${options.content}
+**用户情绪标签：** ${options.emotion || '未指定'}
+${options.conversationContext ? `**对话上下文：** ${options.conversationContext}` : ''}
 
-# 示例风格
-"从你的文字中，我感受到了[具体情绪]的波动。这种[情绪描述]是很自然的，[具体分析]。记住，每一次情绪的起伏都是内心在与你对话，[鼓励和建议]。"
+**要求：**
+1. 敏锐捕捉用户的情绪状态和背后的原因
+2. 用温暖、亲切的语言表达理解和共情
+3. 提供2-3个简单可行的情绪调节建议
+4. 给予鼓励和关怀，像朋友一样支持
+5. 使用表情符号增加温度（如 🎉、🌧️、❤️、🤗）
+6. 控制在100-150字左右
 
-请分析以下日记内容：
-
-日记标题：${options.title}
-日记内容：${options.content}
-用户情绪标签：${options.emotion || '未指定'}
-${options.conversationContext ? `对话上下文：${options.conversationContext}` : ''}
+**输出格式：**
+- 对话式，像朋友聊天
+- 先表达理解和共情
+- 然后给出具体建议
+- 最后给予鼓励
 
 请生成一段温暖而专业的情绪洞察分析。`
-}
-
-/**
- * 构建分析型洞察的提示词
- */
-function buildAnalysisInsightPrompt(options: InsightGenerationOptions): string {
-  return `
-# 角色
-你是一个专业的情绪分析师和文本信息提取专家。
-
-# 任务
-你的任务是基于用户提供的文本记录，进行深入的情绪分析，并以严格的 JSON 格式输出三个关键信息：心情指数、心情关键词和事件关键词。
-
-# 指令与规则
-1.  **心情指数 (mood_score)**:
-    * 对文本中表达的整体情绪强度进行评分，分值为 1-10 的整数。
-    * 评分标准：1 代表极度负面情绪（如：绝望、崩溃），5 代表中性或复杂情绪（如：平静、迷茫、悲喜交加），10 代表极度正面情绪（如：狂喜、极度兴奋）。
-    * 评分必须是整数。
-
-2.  **心情关键词 (emotion_keywords)**:
-    * 从文本中提取能直接或间接描述情绪状态的词语或短语。
-    * 这些词应该聚焦于"感受"，例如"开心"、"崩溃"、"燃起来"、"心如刀割"、"松了一口气"等。
-    * 结果必须是一个 JSON 字符串数组。
-
-3.  **事件关键词 (event_keywords)**:
-    * 从文本中提取引发上述情绪的客观"事件"、"原因"或"对象"。
-    * 这些词应该聚焦于"事实"，即"发生了什么事"，例如"收到录取通知书"、"项目搞砸了"、"和朋友吵架"、"考试通过"等。
-    * 结果必须是一个 JSON 字符串数组。
-
-4.  **输出格式**:
-    * 你必须且只能输出一个严格的、不包含任何额外解释说明的 JSON 对象。
-    * JSON 对象的键必须使用英文：\`mood_score\`, \`emotion_keywords\`, \`event_keywords\`。
-
-请分析以下日记内容：
-
-日记标题：${options.title}
-日记内容：${options.content}
-用户情绪标签：${options.emotion || '未指定'}
-
-请返回JSON格式的分析结果。`
 }
 
 /**
  * 生成备用洞察模板
  */
 function generateFallbackInsight(options: InsightGenerationOptions): string {
-  // 使用通用的备用模板，不再区分类型
   return `你记录了${options.emotion || '丰富'}的心情。${options.content.length > 50 ? '这是一篇详细的记录，' : ''}保持记录的习惯，让每一次情绪波动都成为成长的轨迹。`
 }
 

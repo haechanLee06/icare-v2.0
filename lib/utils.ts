@@ -149,3 +149,21 @@ export function getGreeting(): string {
     return "夜深了"
   }
 }
+
+/**
+ * 清理AI返回的JSON响应，移除可能的markdown格式标记
+ * @param aiResponse AI返回的原始响应
+ * @returns 清理后的响应字符串
+ */
+export function cleanAIResponse(aiResponse: string): string {
+  let cleanResponse = aiResponse.trim()
+  
+  // 如果响应被markdown代码块包围，提取其中的内容
+  if (cleanResponse.startsWith('```json') && cleanResponse.endsWith('```')) {
+    cleanResponse = cleanResponse.slice(7, -3).trim()
+  } else if (cleanResponse.startsWith('```') && cleanResponse.endsWith('```')) {
+    cleanResponse = cleanResponse.slice(3, -3).trim()
+  }
+  
+  return cleanResponse
+}

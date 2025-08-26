@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Home, BookOpen, Plus, BarChart3, User, ChevronLeft, ChevronRight, LogOut, Edit3 } from "lucide-react"
+import { Home, BookOpen, Plus, BarChart3, User, ChevronLeft, ChevronRight, LogOut, Edit3, Mail, X } from "lucide-react"
 import Link from "next/link"
 import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/contexts/auth-context"
@@ -20,6 +20,32 @@ export default function HomePage() {
   const [userDiaries, setUserDiaries] = useState<any[]>([])
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showNotifications, setShowNotifications] = useState(false)
+
+  // 版本更新数据
+  const versionUpdates = [
+    {
+      version: "V1.1",
+      date: "2024年8月27日",
+      title: "🎉 小愈的第一次成长",
+      updates: [
+        "🤖 AI情绪洞察分析正式上线啦！小愈现在不仅能陪你聊天，还能帮你分析情绪变化，是不是很贴心？",
+        "💭 生成日记前增加了温馨提醒，避免误触，让每一次记录都更有意义～",
+        "✨ 修复了一些小bug，优化了用户体验，让小愈变得更加聪明可爱！"
+      ]
+    },
+    {
+      version: "V1.0",
+      date: "2024年8月20日",
+      title: "🌟 iCare心语迹正式上线",
+      updates: [
+        "🎊 小愈诞生啦！你的专属AI心灵伙伴正式上线",
+        "📝 支持AI对话生成日记，让记录心情变得简单有趣",
+        "📊 情绪分析功能，帮你更好地了解自己的内心世界",
+        "🎨 温暖治愈的界面设计，给你最舒适的体验"
+      ]
+    }
+  ]
 
   useEffect(() => {
     console.log("HomePage useEffect - user:", user)
@@ -168,6 +194,18 @@ export default function HomePage() {
             <h1 className="text-xl font-serif font-bold text-primary">心语迹</h1>
           </div>
           <div className="flex items-center gap-3">
+            {/* 通知图标 */}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="relative gentle-transition" 
+              onClick={() => setShowNotifications(true)}
+            >
+              <Mail className="w-5 h-5" />
+              {/* 小红点提示 */}
+              <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-300 rounded-full"></div>
+            </Button>
+            
             <Button variant="ghost" size="icon" className="gentle-transition" onClick={logout}>
               <LogOut className="w-5 h-5" />
             </Button>
@@ -303,6 +341,58 @@ export default function HomePage() {
             ))}
           </div>
         </nav>
+
+        {/* 版本更新通知弹窗 */}
+        {showNotifications && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-card/95 border border-border/50 rounded-2xl p-6 max-w-md mx-4 max-h-[80vh] overflow-y-auto soft-shadow">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Mail className="w-5 h-5 text-primary" />
+                  </div>
+                  <h3 className="font-serif font-semibold text-lg text-foreground">版本更新</h3>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setShowNotifications(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <div className="space-y-6">
+                {versionUpdates.map((version, index) => (
+                  <div key={version.version} className="border-l-4 border-primary/30 pl-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Badge variant="outline" className="border-primary text-primary text-xs">
+                        {version.version}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{version.date}</span>
+                    </div>
+                    <h4 className="font-semibold text-foreground mb-3">{version.title}</h4>
+                    <ul className="space-y-2">
+                      {version.updates.map((update, updateIndex) => (
+                        <li key={updateIndex} className="text-sm text-muted-foreground leading-relaxed flex items-start gap-2">
+                          <span className="text-primary mt-1">•</span>
+                          <span>{update}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-border/50">
+                <p className="text-xs text-center text-muted-foreground">
+                  💝 感谢你的陪伴，小愈会继续努力成长，为你带来更好的体验！
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </AuthGuard>
   )

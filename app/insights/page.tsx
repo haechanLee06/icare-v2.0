@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, TrendingUp, TrendingDown, Minus, BarChart3, Activity, Target, Home, BookOpen, Plus, User } from "lucide-react"
 import Link from "next/link"
+import { useRouter, usePathname } from "next/navigation"
 import { AuthGuard } from "@/components/auth-guard"
 import { useAuth } from "@/contexts/auth-context"
 import { BackgroundWrapper } from "@/components/background-wrapper"
@@ -28,11 +29,13 @@ interface TimeRange {
 
 export default function InsightsPage() {
   const { user } = useAuth()
+  const router = useRouter()
+  const pathname = usePathname()
   const [emotionData, setEmotionData] = useState<EmotionData[]>([])
   const [dailyEmotionData, setDailyEmotionData] = useState<DailyEmotionData[]>([])
   const [dailyEmotionStats, setDailyEmotionStats] = useState<any>(null)
   const [selectedTimeRange, setSelectedTimeRange] = useState<string>("7")
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState<string>("")
   const [isLoading, setIsLoading] = useState(true)
   const [averageMood, setAverageMood] = useState(0)
   const [moodTrend, setMoodTrend] = useState<"up" | "down" | "stable">("stable")
@@ -44,8 +47,67 @@ export default function InsightsPage() {
     { label: "90天", days: 90, value: "90" }
   ]
 
+  // 获取当前日期字符串
+  const getCurrentDateString = () => {
+    // 使用本地时间而不是UTC时间，确保时区正确
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // 初始化或更新selectedDate为当前日期
   useEffect(() => {
-    if (user) {
+    const currentDate = getCurrentDateString()
+    setSelectedDate(currentDate)
+    console.log("📅 [Insights] Setting current date:", currentDate)
+  }, []) // 只在组件挂载时执行一次
+
+  // 监听路径变化，确保每次进入页面都能正确更新日期
+  useEffect(() => {
+    const currentDate = getCurrentDateString()
+    if (selectedDate !== currentDate) {
+      console.log("📅 [Insights] Path changed, updating date to:", currentDate)
+      setSelectedDate(currentDate)
+    }
+  }, [pathname, selectedDate])
+
+  // 监听页面焦点，当用户从其他标签页回来时更新日期
+  useEffect(() => {
+    const handleFocus = () => {
+      const currentDate = getCurrentDateString()
+      if (selectedDate !== currentDate) {
+        console.log("📅 [Insights] Page focused, updating date from", selectedDate, "to", currentDate)
+        setSelectedDate(currentDate)
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [selectedDate])
+
+  // 强制在每次组件挂载时更新日期
+  useEffect(() => {
+    const updateDate = () => {
+      const currentDate = getCurrentDateString()
+      if (selectedDate !== currentDate) {
+        console.log("📅 [Insights] Force updating date to:", currentDate)
+        setSelectedDate(currentDate)
+      }
+    }
+    
+    // 立即更新一次
+    updateDate()
+    
+    // 设置一个定时器，确保日期是最新的
+    const timer = setTimeout(updateDate, 100)
+    
+    return () => clearTimeout(timer)
+  }, []) // 只在组件挂载时执行
+
+  useEffect(() => {
+    if (user && selectedDate) {
       loadEmotionData()
       loadDailyEmotionData()
     }
@@ -128,13 +190,20 @@ export default function InsightsPage() {
           {/* 一天之内情感变化仪表盘 */}
           <Card className="p-6 soft-shadow mb-6 bg-white/80 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold text-foreground">今日情感变化</h2>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">今日情感变化</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  查看 {new Date(selectedDate).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })} 的情感记录
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
             </div>
             
             {dailyEmotionData.length === 0 ? (
