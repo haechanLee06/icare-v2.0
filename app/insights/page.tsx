@@ -178,10 +178,6 @@ export default function InsightsPage() {
             <div className="w-2 h-2 rounded-full bg-primary"></div>
             <h1 className="text-xl font-serif font-bold text-primary">情绪分析</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">智能洞察</span>
-          </div>
         </header>
 
         <main className="px-4 pb-24">
@@ -192,9 +188,6 @@ export default function InsightsPage() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">今日情感变化</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  查看 {new Date(selectedDate).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric' })} 的情感记录
-                </p>
               </div>
               <div className="flex items-center gap-3">
                 <input
