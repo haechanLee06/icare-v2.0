@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   title: "心语迹 - icare",
   description: "一款有情感智能的AI对话日记应用，帮助你用文艺的方式记录生活",
   generator: "v0.app",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+    shortcut: "/icon.svg",
+  },
 }
 
 export default function RootLayout({

@@ -10,6 +10,9 @@ import { useRouter } from "next/navigation"
 import { AuthGuard } from "@/components/auth-guard"
 import { useChat } from "@/hooks/use-chat"
 import { getSmartEmotionSuggestions } from "@/lib/deepseek"
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
+import { MicButton } from "@/components/mic-button"
+import { VoiceStatusBar } from "@/components/voice-status-bar"
 
 export default function ChatPage() {
   const { messages, isLoading, error, sendMessage, clearMessages, conversationId } = useChat()
@@ -20,6 +23,16 @@ export default function ChatPage() {
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+
+  // 语音识别
+  const { isSupported, isListening, interimTranscript, latestFinalChunk, error: voiceError, toggleListening } = useSpeechRecognition({ lang: "zh-CN", interimResults: true, continuous: true })
+
+  // 有新的最终片段时，追加到输入框
+  useEffect(() => {
+    if (latestFinalChunk) {
+      setInputValue((v) => (v ? v + " " : "") + latestFinalChunk)
+    }
+  }, [latestFinalChunk])
 
   // 检查是否可以发送消息
   const canSendMessage = !isLoading && !isGeneratingDiary && inputValue.trim()
@@ -202,6 +215,7 @@ export default function ChatPage() {
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background paper-texture flex flex-col">
+        <VoiceStatusBar isSupported={isSupported} isListening={isListening} error={voiceError} />
         {/* 顶部导航 */}
         <header className="flex items-center justify-between p-4 pt-12 border-b border-border/50">
           <div className="flex items-center gap-3">
@@ -430,6 +444,15 @@ export default function ChatPage() {
                 }}
                 disabled={isLoading || isGeneratingDiary}
               />
+              <div className="absolute left-1 top-1/2 -translate-y-1/2">
+                <MicButton
+                  isSupported={isSupported}
+                  isListening={isListening}
+                  onToggle={toggleListening}
+                  disabled={isLoading || isGeneratingDiary}
+                  pulse={!inputValue && !isListening}
+                />
+              </div>
               <Button
                 onClick={handleSendMessage}
                 size="icon"
@@ -439,6 +462,9 @@ export default function ChatPage() {
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </Button>
             </div>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground">
+            {isListening ? `正在听你说... ${interimTranscript}` : "点击左侧麦克风开始语音输入"}
           </div>
         </div>
       </div>

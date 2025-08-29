@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,6 +15,9 @@ import { supabase } from "@/lib/supabase/client"
 import { getCurrentDateInfo } from "@/lib/utils"
 import { analyzeEmotionWithAI } from "@/lib/emotion-ai"
 import { BackgroundWrapper } from "@/components/background-wrapper"
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
+import { MicButton } from "@/components/mic-button"
+import { VoiceStatusBar } from "@/components/voice-status-bar"
 
 const emotionOptions = [
   "平静", "快乐", "兴奋", "满足", "感激", "希望", "好奇", "专注",
@@ -37,6 +40,15 @@ export default function NewDiaryPage() {
   const [selectedMoodTags, setSelectedMoodTags] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
+
+  // 语音识别：填充正文 content
+  const { isSupported, isListening, interimTranscript, latestFinalChunk, error: voiceError, toggleListening } = useSpeechRecognition({ lang: "zh-CN", interimResults: true, continuous: true })
+
+  useEffect(() => {
+    if (latestFinalChunk) {
+      setContent((v) => (v ? v + " " : "") + latestFinalChunk)
+    }
+  }, [latestFinalChunk])
 
   const handleEmotionSelect = (selectedEmotion: string) => {
     setEmotion(selectedEmotion)
@@ -127,6 +139,7 @@ export default function NewDiaryPage() {
     <AuthGuard>
       <BackgroundWrapper>
         <div className="min-h-screen">
+          <VoiceStatusBar isSupported={isSupported} isListening={isListening} error={voiceError} />
           {/* 顶部导航 */}
           <header className="flex items-center justify-between p-4 pt-12">
             <Link href="/">
@@ -175,6 +188,16 @@ export default function NewDiaryPage() {
                 className="border-none bg-transparent resize-none min-h-[300px] p-0 focus-visible:ring-0 leading-relaxed"
                 maxLength={1000}
               />
+
+              <div className="flex items-center justify-between mt-2">
+                <div className="text-xs text-muted-foreground">{isListening ? `正在听你说... ${interimTranscript}` : "点击右侧麦克风开始语音输入"}</div>
+                <MicButton
+                  isSupported={isSupported}
+                  isListening={isListening}
+                  onToggle={toggleListening}
+                  pulse={!content && !isListening}
+                />
+              </div>
 
               {/* 字符计数 */}
               <div className="flex justify-between text-xs text-muted-foreground mt-2">

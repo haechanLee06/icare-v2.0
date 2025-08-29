@@ -14,6 +14,9 @@ import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase/client"
 import { analyzeEmotionWithAI } from "@/lib/emotion-ai"
 import { generateAIInsight } from "@/lib/ai-insight-generator"
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition"
+import { MicButton } from "@/components/mic-button"
+import { VoiceStatusBar } from "@/components/voice-status-bar"
 
 interface DiaryImage {
   id: string
@@ -40,6 +43,15 @@ export default function EditDiaryPage({ params }: { params: Promise<{ id: string
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState("")
+
+  // 语音识别：填充正文 content
+  const { isSupported, isListening, interimTranscript, latestFinalChunk, error: voiceError, toggleListening } = useSpeechRecognition({ lang: "zh-CN", interimResults: true, continuous: true })
+
+  useEffect(() => {
+    if (latestFinalChunk) {
+      setContent((v: string) => (v ? v + " " : "") + latestFinalChunk)
+    }
+  }, [latestFinalChunk])
 
   const editingTools = [
     { name: "添加照片", icon: "📷", color: "bg-pink-100 text-pink-600", action: "upload" },
@@ -400,6 +412,7 @@ export default function EditDiaryPage({ params }: { params: Promise<{ id: string
   return (
     <AuthGuard>
       <div className="min-h-screen bg-background paper-texture">
+        <VoiceStatusBar isSupported={isSupported} isListening={isListening} error={voiceError} />
         {/* 顶部导航 */}
         <header className="flex items-center justify-between p-4 pt-12">
           <Link href={`/diary/${id}`}>
@@ -446,6 +459,16 @@ export default function EditDiaryPage({ params }: { params: Promise<{ id: string
               placeholder="记录今天的心情和想法..."
               className="border-none bg-transparent resize-none min-h-[300px] p-0 focus-visible:ring-0 leading-relaxed"
             />
+
+            <div className="flex items-center justify-between mt-2">
+              <div className="text-xs text-muted-foreground">{isListening ? `正在听你说... ${interimTranscript}` : "点击右侧麦克风开始语音输入"}</div>
+              <MicButton
+                isSupported={isSupported}
+                isListening={isListening}
+                onToggle={toggleListening}
+                pulse={!content && !isListening}
+              />
+            </div>
 
             {/* 图片展示区域 */}
             {images.length > 0 && (
