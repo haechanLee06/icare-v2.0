@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { supabase } from "@/lib/supabase/client"
 import { formatDate, getEmotionColor, getEmotionEmoji, getCurrentDateInfo, getGreeting } from "@/lib/utils"
 import { getAvatarById } from "@/lib/avatar-library"
+import { getMoodBackgroundColor, getMoodColorName } from "@/lib/emotion-analysis"
 
 export default function HomePage() {
   const { user, logout } = useAuth()
@@ -24,6 +25,16 @@ export default function HomePage() {
 
   // 版本更新数据
   const versionUpdates = [
+    {
+      version: "V1.1.1",
+      date: "2025年8月30日",
+      title: "🌈 小愈的彩色心情日记",
+      updates: [
+        "🎨 情绪日历上线啦！现在不只是查看记录，更可以直观地看到每天的心情色彩，让情绪变化一目了然～",
+        "🎤 语音转文字功能实现！情绪可以直接\"说\"出来了，再也不用担心打字太慢跟不上心情的变化啦！",
+        "🔧 修复了登录验证时会出现的一些小bug，让小愈的\"大门\"更加稳定可靠～"
+      ]
+    },
     {
       version: "V1.1",
       date: "2025年8月27日",
@@ -143,11 +154,27 @@ export default function HomePage() {
 
     // 实际天数
     for (let day = 1; day <= daysInMonth; day++) {
-      // 根据真实数据判断这一天是否有情绪记录
-      const hasEmotion = userDiaries.some((diary: any) => {
+      // 根据真实数据判断这一天是否有情绪记录，并计算平均情绪分数
+      const dayDiaries = userDiaries.filter((diary: any) => {
         const diaryDate = new Date(diary.created_at)
-        return diaryDate.getDate() === day
+        return diaryDate.getDate() === day && diaryDate.getMonth() === currentDate.getMonth()
       })
+
+      const hasEmotion = dayDiaries.length > 0
+      let averageMoodScore = 0
+      let moodColor = "#9F7AEA" // 默认颜色
+
+      if (hasEmotion && dayDiaries.length > 0) {
+        // 计算当天的平均情绪分数
+        const validScores = dayDiaries
+          .filter((diary: any) => diary.mood_score !== null && diary.mood_score !== undefined)
+          .map((diary: any) => diary.mood_score)
+        
+        if (validScores.length > 0) {
+          averageMoodScore = validScores.reduce((sum: number, score: number) => sum + score, 0) / validScores.length
+          moodColor = getMoodBackgroundColor(averageMoodScore)
+        }
+      }
 
       days.push(
         <div
@@ -156,24 +183,20 @@ export default function HomePage() {
             hasEmotion ? "text-white font-medium" : "text-muted-foreground"
           }`}
           style={{
-            backgroundColor: hasEmotion ? "#9F7AEA" : "transparent"
+            backgroundColor: hasEmotion ? moodColor : "transparent"
           }}
           onClick={() => {
-            const diaryForDay = userDiaries.find((diary: any) => {
-              const diaryDate = new Date(diary.created_at)
-              return diaryDate.getDate() === day
-            })
-            if (diaryForDay) {
-              console.log(`点击了${day}号，日记内容:`, diaryForDay.content)
+            if (dayDiaries.length > 0) {
+              console.log(`点击了${day}号，日记内容:`, dayDiaries)
               // 这里可以添加跳转到日记详情页的逻辑
             }
           }}
           title={(() => {
-            const diaryForDay = userDiaries.find((diary: any) => {
-              const diaryDate = new Date(diary.created_at)
-              return diaryDate.getDate() === day
-            })
-            return diaryForDay ? `点击查看${day}号的记录` : `${day}号暂无记录`
+            if (dayDiaries.length > 0) {
+              const moodName = getMoodColorName(averageMoodScore)
+              return `${day}号: ${moodName}`
+            }
+            return `${day}号暂无记录`
           })()}
         >
           {day}
@@ -296,9 +319,22 @@ export default function HomePage() {
             <div className="grid grid-cols-7 gap-1">{renderCalendar()}</div>
 
             {/* 图例说明 */}
-            <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#9F7AEA" }}></div>
-              <span className="text-xs text-muted-foreground">有记录的日期</span>
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="text-xs text-muted-foreground mb-2">情绪状态图例：</div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#10B981" }}></div>
+                  <span className="text-xs text-muted-foreground">愉悦 </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#8B5CF6" }}></div>
+                  <span className="text-xs text-muted-foreground">平静 </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: "#F97316" }}></div>
+                  <span className="text-xs text-muted-foreground">低落 </span>
+                </div>
+              </div>
             </div>
             
             {/* 本月记录统计 */}

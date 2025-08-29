@@ -418,14 +418,14 @@ export default function ChatPage() {
         {/* 输入区域 */}
         <div className="p-4 border-t border-border/50 bg-card/50">
           <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="text-muted-foreground gentle-transition"
-              disabled={isGeneratingDiary}
-            >
-              <ImageIcon className="w-5 h-5" />
-            </Button>
+            {/* 麦克风按钮 - 替换原来的图片图标 */}
+            <MicButton
+              isSupported={isSupported}
+              isListening={isListening}
+              onToggle={toggleListening}
+              disabled={isLoading || isGeneratingDiary}
+              pulse={!inputValue && !isListening}
+            />
 
             <div className="flex-1 relative">
               <Input
@@ -444,15 +444,6 @@ export default function ChatPage() {
                 }}
                 disabled={isLoading || isGeneratingDiary}
               />
-              <div className="absolute left-1 top-1/2 -translate-y-1/2">
-                <MicButton
-                  isSupported={isSupported}
-                  isListening={isListening}
-                  onToggle={toggleListening}
-                  disabled={isLoading || isGeneratingDiary}
-                  pulse={!inputValue && !isListening}
-                />
-              </div>
               <Button
                 onClick={handleSendMessage}
                 size="icon"

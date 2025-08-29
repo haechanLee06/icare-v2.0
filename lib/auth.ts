@@ -59,10 +59,10 @@ export async function loginUser(username: string, password: string) {
       return { success: false, error: "用户名或密码错误" }
     }
 
-    // Store user session in localStorage
+    // Store user session in localStorage only (removed cookie)
     if (typeof window !== "undefined") {
       localStorage.setItem("user", JSON.stringify(data))
-      document.cookie = `user-session=${data.id}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
+      console.log("User session stored in localStorage")
     }
 
     return { success: true, user: data }
@@ -89,8 +89,7 @@ export function getCurrentUser(): User | null {
 export function logoutUser() {
   if (typeof window !== "undefined") {
     localStorage.removeItem("user")
-    // Remove cookie
-    document.cookie = "user-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    console.log("User session removed from localStorage")
   }
 }
 

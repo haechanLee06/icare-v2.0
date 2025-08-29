@@ -8,6 +8,12 @@ export function middleware(request: NextRequest) {
   const publicRoutes = ["/auth/login", "/auth/register"]
   const isPublicRoute = publicRoutes.includes(pathname)
 
+  // 暂时禁用中间件认证检查，避免cookie相关问题
+  // 认证逻辑将在客户端处理
+  return NextResponse.next()
+
+  // 原有的认证逻辑（已注释）
+  /*
   // Check if user has authentication cookie/header
   const userCookie = request.cookies.get("user-session")
 
@@ -20,8 +26,7 @@ export function middleware(request: NextRequest) {
   if (!isPublicRoute && !userCookie) {
     return NextResponse.redirect(new URL("/auth/login", request.url))
   }
-
-  return NextResponse.next()
+  */
 }
 
 export const config = {

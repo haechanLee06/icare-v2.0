@@ -1,9 +1,10 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { type User, getCurrentUser, logoutUser, validateUserSession } from "@/lib/auth"
+import { Loader2 } from "lucide-react"
 
 interface AuthContextType {
   user: User | null
@@ -18,10 +19,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
   const router = useRouter()
 
   // 验证用户会话
-  const validateSession = async (userData: User) => {
+  const validateSession = useCallback(async (userData: User) => {
     try {
       const validatedUser = await validateUserSession(userData.id.toString())
       if (validatedUser) {
@@ -37,10 +39,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logoutUser()
       return null
     }
-  }
+  }, [])
 
   // 刷新用户信息
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       setLoading(true)
       const currentUser = getCurrentUser()
@@ -58,9 +60,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [validateSession])
 
   useEffect(() => {
+    let mounted = true
+
     const initializeAuth = async () => {
       try {
         console.log("Initializing authentication...")
@@ -69,31 +73,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const currentUser = getCurrentUser()
         console.log("AuthContext - getCurrentUser result:", currentUser)
         
-        if (currentUser) {
+        if (currentUser && mounted) {
           // 验证用户会话
           const validatedUser = await validateSession(currentUser)
-          setUser(validatedUser)
-          
-          // 设置cookie（如果不存在）
-          if (validatedUser && !document.cookie.includes("user-session=")) {
-            document.cookie = `user-session=${validatedUser.id}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
-            console.log("Set user session cookie")
+          if (mounted) {
+            setUser(validatedUser)
           }
-        } else {
+          
+          // 移除cookie设置，仅使用localStorage
+          console.log("User session initialized from localStorage")
+        } else if (mounted) {
           console.log("No user found in localStorage")
           setUser(null)
         }
       } catch (error) {
         console.error("Authentication initialization error:", error)
-        setUser(null)
+        if (mounted) {
+          setUser(null)
+        }
       } finally {
-        setLoading(false)
-        console.log("Authentication initialization completed. User:", user, "Loading:", loading)
+        if (mounted) {
+          setLoading(false)
+          setInitialized(true)
+          console.log("Authentication initialization completed. User:", user, "Loading:", loading)
+        }
       }
     }
 
     initializeAuth()
-  }, [])
+
+    return () => {
+      mounted = false
+    }
+  }, [validateSession])
 
   // 监听localStorage变化
   useEffect(() => {
@@ -106,25 +118,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     window.addEventListener("storage", handleStorageChange)
     return () => window.removeEventListener("storage", handleStorageChange)
-  }, [])
+  }, [refreshUser])
 
-  const login = (userData: User) => {
+  const login = useCallback((userData: User) => {
     console.log("Login called with user:", userData)
     setUser(userData)
     
-    // 设置cookie
-    document.cookie = `user-session=${userData.id}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`
-    console.log("User logged in and cookie set")
-  }
+    // 移除cookie设置，仅使用localStorage
+    console.log("User logged in successfully")
+  }, [])
 
-  const logout = () => {
+  const logout = useCallback(() => {
     console.log("Logout called")
     logoutUser()
     setUser(null)
-    // Remove cookie
-    document.cookie = "user-session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
+    // 移除cookie清理代码
     router.push("/auth/login")
-  }
+  }, [router])
 
   const contextValue: AuthContextType = {
     user,
@@ -132,6 +142,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     refreshUser
+  }
+
+  // 只在初始化完成后渲染
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FFF3E0] via-[#F5F5F5] to-[#FFF3E0]">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#9F7AEA] rounded-full mb-4 soft-shadow animate-pulse">
+            <div className="w-8 h-8 text-white text-2xl">❤</div>
+          </div>
+          <div className="flex items-center justify-center space-x-2">
+            <Loader2 className="w-5 h-5 animate-spin text-[#9F7AEA]" />
+            <span className="text-[#9F7AEA] font-medium">初始化中...</span>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   console.log("AuthContext render - user:", user, "loading:", loading)

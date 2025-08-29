@@ -334,3 +334,21 @@ export async function getDailyEmotionStats(
     }
   }
 }
+
+/**
+ * 获取情绪背景颜色（用于日历显示）
+ */
+export function getMoodBackgroundColor(score: number): string {
+  if (score >= 7) return "#10B981" // 暖色调绿色 - 愉悦
+  if (score >= 4) return "#8B5CF6" // 暖色调紫色 - 平静
+  return "#F97316" // 橙色 - 低落
+}
+
+/**
+ * 获取情绪颜色名称（用于图例）
+ */
+export function getMoodColorName(score: number): string {
+  if (score >= 7) return "愉悦"
+  if (score >= 4) return "平静"
+  return "低落"
+}

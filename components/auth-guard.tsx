@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Loader2, Heart } from "lucide-react"
@@ -13,15 +13,38 @@ interface AuthGuardProps {
 export function AuthGuard({ children }: AuthGuardProps) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   console.log("AuthGuard - user:", user, "loading:", loading)
 
   useEffect(() => {
-    if (!loading && !user) {
+    // 防止重复重定向
+    if (!loading && !user && !isRedirecting) {
       console.log("No user found, redirecting to login")
-      router.push("/auth/login")
+      setIsRedirecting(true)
+      // 添加延迟避免闪烁
+      setTimeout(() => {
+        router.push("/auth/login")
+      }, 100)
     }
-  }, [user, loading, router])
+  }, [user, loading, router, isRedirecting])
+
+  // 如果正在重定向，显示加载状态
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#FFF3E0] via-[#F5F5F5] to-[#FFF3E0]">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#9F7AEA] rounded-full mb-4 soft-shadow animate-pulse">
+            <Heart className="w-8 h-8 text-white" />
+          </div>
+          <div className="flex items-center justify-center space-x-2">
+            <Loader2 className="w-5 h-5 animate-spin text-[#9F7AEA]" />
+            <span className="text-[#9F7AEA] font-medium">跳转中...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (loading) {
     return (
